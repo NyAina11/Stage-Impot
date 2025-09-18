@@ -1,0 +1,5 @@
+{
+  "name": "Application de Suivi des Contributions Fiscales (ASCF)",
+  "description": "An internal web application to register, track, and archive the tax payment process, ensuring traceability and real-time reporting.",
+  "requestFramePermissions": []
+}
