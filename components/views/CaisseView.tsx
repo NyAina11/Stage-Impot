@@ -6,6 +6,43 @@ import Input from '../ui/Input';
 import Card from '../ui/Card';
 import DossierDetailModal from '../DossierDetailModal';
 
+interface PaymentStats {
+    espece: number;
+    cheque: number;
+    virement: number;
+    total: number;
+}
+
+const StatCard: React.FC<{ title: string; stats: PaymentStats }> = ({ title, stats }) => {
+    const formatCurrency = (amount: number) => `${amount.toLocaleString('fr-FR')} Ar`;
+    
+    return (
+        <Card>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{title}</h3>
+            <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Espèces:</span>
+                    <span className="font-medium">{formatCurrency(stats.espece)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Chèques:</span>
+                    <span className="font-medium">{formatCurrency(stats.cheque)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Virements:</span>
+                    <span className="font-medium">{formatCurrency(stats.virement)}</span>
+                </div>
+                <hr className="my-2 border-gray-200 dark:border-gray-600" />
+                <div className="flex justify-between font-bold text-base">
+                    <span>Total:</span>
+                    <span className="text-primary-600 dark:text-primary-400">{formatCurrency(stats.total)}</span>
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+
 const CaisseView: React.FC = () => {
     const { dossiers, confirmPayment } = useAppStore();
     const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +60,40 @@ const CaisseView: React.FC = () => {
             d.taxId.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [dossiers, searchTerm]);
+    
+    const paymentStats = useMemo(() => {
+        const paidDossiers = dossiers.filter(d => d.status === DossierStatus.PAYE && d.paymentDate);
+
+        const calculateTotals = (filteredList: DossierPaiement[]): PaymentStats => {
+            return filteredList.reduce((acc, dossier) => {
+                const amount = dossier.amountDue || 0;
+                if (dossier.paymentMethod === PaymentMethod.ESPECE) acc.espece += amount;
+                else if (dossier.paymentMethod === PaymentMethod.CHEQUE) acc.cheque += amount;
+                else if (dossier.paymentMethod === PaymentMethod.VIREMENT) acc.virement += amount;
+                acc.total += amount;
+                return acc;
+            }, { espece: 0, cheque: 0, virement: 0, total: 0 });
+        };
+
+        const today = new Date();
+        const todayStr = today.toDateString();
+        const dailyDossiers = paidDossiers.filter(d => new Date(d.paymentDate!).toDateString() === todayStr);
+
+        const tenDaysAgo = new Date();
+        tenDaysAgo.setDate(today.getDate() - 9); // Inclusive of today
+        tenDaysAgo.setHours(0,0,0,0);
+        const last10DaysDossiers = paidDossiers.filter(d => new Date(d.paymentDate!) >= tenDaysAgo);
+
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const monthlyDossiers = paidDossiers.filter(d => new Date(d.paymentDate!) >= startOfMonth);
+
+        return {
+            daily: calculateTotals(dailyDossiers),
+            last10Days: calculateTotals(last10DaysDossiers),
+            monthly: calculateTotals(monthlyDossiers)
+        };
+    }, [dossiers]);
+
 
     const handleOpenConfirmModal = (dossier: DossierPaiement) => {
         setDossierToConfirm(dossier);
@@ -46,6 +117,12 @@ const CaisseView: React.FC = () => {
     
     return (
         <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard title="Total Encaissé (Aujourd'hui)" stats={paymentStats.daily} />
+                <StatCard title="Total Encaissé (10 derniers jours)" stats={paymentStats.last10Days} />
+                <StatCard title="Total Encaissé (Ce mois-ci)" stats={paymentStats.monthly} />
+            </div>
+
             <Card>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold">Dossiers en attente de paiement</h2>
