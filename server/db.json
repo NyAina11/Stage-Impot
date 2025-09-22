@@ -1,0 +1,109 @@
+{
+  "users": [
+    {
+      "id": "user_accueil",
+      "username": "accueil_user",
+      "password": "$2b$10$JSgccg0FF6dr719CaV7i4OzE0qMSmkUZ4CY0ttxBG4B8ZKIlNnZ96",
+      "role": "Accueil"
+    },
+    {
+      "id": "user_gestion",
+      "username": "gestion_user",
+      "password": "$2b$10$JSgccg0FF6dr719CaV7i4OzE0qMSmkUZ4CY0ttxBG4B8ZKIlNnZ96",
+      "role": "Gestion"
+    },
+    {
+      "id": "user_caisse",
+      "username": "caisse_user",
+      "password": "$2b$10$JSgccg0FF6dr719CaV7i4OzE0qMSmkUZ4CY0ttxBG4B8ZKIlNnZ96",
+      "role": "Caisse"
+    },
+    {
+      "id": "user_chef_division",
+      "username": "chef_division_user",
+      "password": "$2b$10$JSgccg0FF6dr719CaV7i4OzE0qMSmkUZ4CY0ttxBG4B8ZKIlNnZ96",
+      "role": "Chef de Division"
+    }
+  ],
+  "dossiers": [
+    {
+      "id": "dos_1758522835609",
+      "taxpayerName": "Rakoto",
+      "taxPeriod": "Septembre 2025",
+      "status": "Payé",
+      "taxDetails": [
+        {
+          "name": "TVA (Taxe sur la Valeur Ajoutée Intrérieure)",
+          "amount": 1200
+        }
+      ],
+      "totalAmount": 1200,
+      "createdBy": "user_accueil",
+      "createdAt": "2025-09-22T06:33:55.609Z",
+      "paymentMethod": "Espèce",
+      "paymentDetails": {
+        "processedBy": "user_caisse",
+        "processedAt": "2025-09-22T06:35:25.585Z"
+      }
+    },
+    {
+      "id": "dos_1758523518391",
+      "taxpayerName": "Rabe",
+      "taxPeriod": "Septembre 2025",
+      "status": "Payé",
+      "taxDetails": [
+        {
+          "name": "IRSA (Impôt sur les Revenus Salariaux)",
+          "amount": 1200
+        }
+      ],
+      "totalAmount": 1200,
+      "createdBy": "user_accueil",
+      "createdAt": "2025-09-22T06:45:18.391Z",
+      "managedBy": "user_gestion",
+      "paymentMethod": "Virement bancaire",
+      "paymentDetails": {
+        "processedBy": "user_caisse",
+        "processedAt": "2025-09-22T07:07:35.609Z"
+      }
+    }
+  ],
+  "auditLogs": [
+    {
+      "user": "user_accueil",
+      "role": "Accueil",
+      "action": "Dossier dos_1758522835609 created",
+      "timestamp": "2025-09-22T06:33:55.609Z"
+    },
+    {
+      "user": "user_gestion",
+      "role": "Gestion",
+      "action": "Dossier dos_1758522835609 updated",
+      "timestamp": "2025-09-22T06:34:30.364Z"
+    },
+    {
+      "user": "user_caisse",
+      "role": "Caisse",
+      "action": "Dossier dos_1758522835609 updated",
+      "timestamp": "2025-09-22T06:35:25.955Z"
+    },
+    {
+      "user": "user_accueil",
+      "role": "Accueil",
+      "action": "Dossier dos_1758523518391 created",
+      "timestamp": "2025-09-22T06:45:18.391Z"
+    },
+    {
+      "user": "user_gestion",
+      "role": "Gestion",
+      "action": "Dossier dos_1758523518391 updated",
+      "timestamp": "2025-09-22T07:07:15.054Z"
+    },
+    {
+      "user": "user_caisse",
+      "role": "Caisse",
+      "action": "Dossier dos_1758523518391 updated",
+      "timestamp": "2025-09-22T07:07:35.812Z"
+    }
+  ]
+}
