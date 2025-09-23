@@ -1,10 +1,11 @@
 import React from 'react';
-import { DossierPaiement, DossierStatus, PaymentMethod } from '../types';
+import { Dossier, DossierStatus, PaymentMethod } from '../types'; 
 import Badge from './ui/Badge';
 import Card from './ui/Card';
+import Button from './ui/Button'; // Assurez-vous que Button est importé
 
 interface DossierDetailModalProps {
-  dossier: DossierPaiement;
+  dossier: Dossier; 
   onClose: () => void;
 }
 
@@ -17,26 +18,26 @@ const TimelineStep: React.FC<{ title: string; status: 'completed' | 'current' | 
     const classes = statusClasses[status];
 
     return (
-        <div className="flex">
-            <div className="flex flex-col items-center mr-4">
-                <div>
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${classes.bg} text-white`}>
-                        {status === 'completed' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
-                        {status === 'current' && <div className={`w-3 h-3 bg-white rounded-full ring-2 ${classes.ring}`}></div>}
-                    </div>
-                </div>
-                <div className={`w-px h-full ${status === 'completed' ? 'bg-green-300' : 'bg-gray-300'}`}></div>
+        <li className="mb-10 ml-6">
+            <span className={`absolute flex items-center justify-center w-6 h-6 rounded-full -left-3 ring-8 ring-white dark:ring-gray-900 ${classes.bg}`}>
+                {/* Icon based on status could go here */}
+            </span>
+            <h3 className={`flex items-center mb-1 text-lg font-semibold ${classes.text}`}>{title}</h3>
+            <div className="block mb-2 text-sm font-normal leading-none text-gray-400 dark:text-gray-500">
+                {children}
             </div>
-            <div className="pb-8">
-                <p className={`mb-1 text-md font-semibold ${classes.text}`}>{title}</p>
-                <div className="text-sm text-gray-600 dark:text-gray-400">{children}</div>
-            </div>
-        </div>
+        </li>
     );
 };
 
-
 const DossierDetailModal: React.FC<DossierDetailModalProps> = ({ dossier, onClose }) => {
+    console.log("DossierDetailModal received dossier:", dossier); // Log pour diagnostiquer
+
+    if (!dossier) {
+        console.error("DossierDetailModal received null or undefined dossier.");
+        return null; // Ne rien rendre si le dossier est null
+    }
+
     const getStepStatus = (step: number) => {
         const statusOrder = [
             DossierStatus.EN_ATTENTE_DE_CALCUL,
@@ -44,124 +45,68 @@ const DossierDetailModal: React.FC<DossierDetailModalProps> = ({ dossier, onClos
             DossierStatus.PAYE
         ];
         const currentIndex = statusOrder.indexOf(dossier.status);
+
         if (dossier.status === DossierStatus.ANNULE && step <= currentIndex) return 'completed';
         if (step < currentIndex) return 'completed';
         if (step === currentIndex) return 'current';
         return 'pending';
     };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <div>
-                 <h2 className="text-2xl font-bold">Détails du Dossier <span className="text-primary-500">{dossier.id}</span></h2>
-                 <Badge status={dossier.status} />
-            </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Main Info */}
-            <div className="md:col-span-2 space-y-4">
-                <Card>
-                    <h3 className="font-bold text-lg mb-2">Informations Générales</h3>
-                     <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div><strong>Contribuable:</strong><br/> {dossier.taxpayerName}</div>
-                        <div><strong>Période Fiscale:</strong><br/> {dossier.taxPeriod}</div>
-                        
-                        <div className="col-span-2 mt-2">
-                            <strong>Détail des impôts:</strong>
-                            <div className="mt-1 space-y-1 rounded-md bg-gray-50 dark:bg-gray-700/50 p-3">
-                                {dossier.taxDetails.map((detail, index) => (
-                                    <div key={index} className="flex justify-between">
-                                        <span>{detail.name}</span>
-                                        <span className="font-semibold">{detail.amount ? `${detail.amount.toLocaleString('fr-FR')} Ar` : 'En attente de calcul'}</span>
-                                    </div>
-                                ))}
-                                {dossier.amountDue != null && (
-                                    <>
-                                        <hr className="border-gray-300 dark:border-gray-600 my-1"/>
-                                        <div className="flex justify-between font-bold text-base">
-                                             <span>TOTAL</span>
-                                             <span>{dossier.amountDue.toLocaleString('fr-FR')} Ar</span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                        
-                        {dossier.status === DossierStatus.PAYE && (
-                            <>
-                                <div className="mt-2"><strong>Méthode de Paiement:</strong><br/> {dossier.paymentMethod}</div>
-                                {dossier.paymentMethod === PaymentMethod.VIREMENT && dossier.bankName && (
-                                    <div className="mt-2"><strong>Banque:</strong><br/> {dossier.bankName}</div>
-                                )}
-                            </>
-                        )}
-                        
-                        {dossier.status === DossierStatus.ANNULE && <div className="col-span-2 mt-2"><strong>Raison d'annulation:</strong><br/> {dossier.cancellationReason}</div>}
-                    </div>
-                </Card>
-                <Card>
-                    <h3 className="font-bold text-lg mb-4">Historique des Actions</h3>
-                    <div className="space-y-2 text-sm max-h-48 overflow-y-auto">
-                        {dossier.history.map((log, index) => (
-                            <div key={index} className="flex justify-between items-center p-2 rounded-md bg-gray-50 dark:bg-gray-700/50">
-                                <div>
-                                    <span className="font-semibold">{log.action}</span>
-                                    <span className="text-gray-500 dark:text-gray-400"> par {log.user} ({log.role})</span>
-                                </div>
-                                <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString('fr-FR')}</span>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-            </div>
-            {/* Timeline */}
-            <div className="md:col-span-1">
-                 <Card>
-                    <h3 className="font-bold text-lg mb-4">Progression</h3>
-                    <div>
-                        <TimelineStep title="Création" status={getStepStatus(0)}>
-                            <p>Par: {dossier.createdBy}</p>
-                            <p>Date: {new Date(dossier.creationDate).toLocaleDateString('fr-FR')}</p>
+    const formatTaxDetails = (taxDetails: { name: string; amount: number }[]) => {
+        if (!taxDetails || taxDetails.length === 0) return "Aucun détail fiscal";
+        return taxDetails.map(detail => `${detail.name}: ${detail.amount.toLocaleString('fr-FR')} Ar`).join(', ');
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+            <Card className="w-full max-w-2xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Détails du Dossier #{dossier.id}</h2>
+                    <Button variant="ghost" onClick={onClose}>×</Button>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                    <p><strong>Contribuable:</strong> {dossier.taxpayerName}</p>
+                    <p><strong>Période Fiscale:</strong> {dossier.taxPeriod}</p>
+                    <p><strong>Statut:</strong> <Badge status={dossier.status} /></p>
+                    <p><strong>Montant Total:</strong> {dossier.totalAmount?.toLocaleString('fr-FR')} Ar</p>
+                    <p><strong>Détails des impôts:</strong> {formatTaxDetails(dossier.taxDetails)}</p>
+                </div>
+
+                <h3 className="text-lg font-bold mb-4">Chronologie du Dossier</h3>
+                <ol className="relative border-l border-gray-200 dark:border-gray-700 ml-3">
+                    <TimelineStep title="Création du dossier" status={getStepStatus(0)}>
+                        {dossier.createdAt ? new Date(dossier.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                        <p>Créé par: {dossier.createdBy}</p>
+                    </TimelineStep>
+
+                    <TimelineStep title="Calcul des montants" status={getStepStatus(1)}>
+                        {dossier.managedBy ? 
+                            <p>Validé par: {dossier.managedBy} le {new Date(dossier.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p> 
+                            : 'En attente de validation par la Gestion'}
+                    </TimelineStep>
+
+                    <TimelineStep title="Paiement du dossier" status={getStepStatus(2)}>
+                        {dossier.paymentDetails?.processedAt ? 
+                            <p>Payé par: {dossier.paymentDetails.processedBy} le {new Date(dossier.paymentDetails.processedAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
+                            : (dossier.status === DossierStatus.ANNULE ? 'Dossier annulé, pas de paiement.' : 'En attente de paiement')}
+                    </TimelineStep>
+
+                    {dossier.status === DossierStatus.ANNULE && dossier.cancelledAt && dossier.reason && (
+                        <TimelineStep title="Dossier Annulé" status={'completed'}>
+                            <p>Annulé le: {new Date(dossier.cancelledAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
+                            <p>Raison: {dossier.reason}</p>
+                            {dossier.cancelledBy && <p>Annulé par: {dossier.cancelledBy}</p>}
                         </TimelineStep>
-                        <TimelineStep title="Calcul du Montant" status={getStepStatus(1)}>
-                            {dossier.managedBy ? (
-                                <>
-                                <p>Par: {dossier.managedBy}</p>
-                                <p>Date: {new Date(dossier.validationDate!).toLocaleDateString('fr-FR')}</p>
-                                </>
-                            ) : <p>En attente...</p>}
-                        </TimelineStep>
-                         <div className="flex"> {/* Final step has no line below */}
-                             <div className="flex flex-col items-center mr-4">
-                                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${getStepStatus(2) === 'completed' ? 'bg-green-500' : getStepStatus(2) === 'current' ? 'bg-blue-500' : 'bg-gray-400'} text-white`}>
-                                     {getStepStatus(2) === 'completed' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
-                                </div>
-                             </div>
-                             <div className="pb-2">
-                                 <p className={`mb-1 text-md font-semibold ${getStepStatus(2) === 'completed' ? 'text-green-800 dark:text-green-300' : 'text-gray-500 dark:text-gray-400'}`}>Paiement Effectué</p>
-                                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                                     {dossier.paidTo ? (
-                                        <>
-                                        <p>Par: {dossier.paidTo}</p>
-                                        <p>Date: {new Date(dossier.paymentDate!).toLocaleDateString('fr-FR')}</p>
-                                        </>
-                                    ) : <p>En attente...</p>}
-                                 </div>
-                             </div>
-                        </div>
-                    </div>
-                </Card>
-            </div>
+                    )}
+                </ol>
+                
+                <div className="mt-6 text-right">
+                    <Button onClick={onClose}>Fermer</Button>
+                </div>
+            </Card>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default DossierDetailModal;
