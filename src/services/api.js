@@ -35,3 +35,8 @@ export const getUsers = () => apiClient.get('/users');
 
 // --- Audit Log Service ---
 export const getAuditLogs = () => apiClient.get('/auditlogs');
+
+// --- Messages Service ---
+export const sendMessage = (content) => apiClient.post('/messages', { content });
+export const getMessages = () => apiClient.get('/messages');
+export const confirmMessage = (id) => apiClient.put(`/messages/${id}/confirm`);

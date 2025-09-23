@@ -66,11 +66,17 @@ const initializeDatabase = async () => {
         { id: "user_chef_division", username: "chef_division_user", password: hashedPassword, role: ROLES.CHEF_DIVISION },
       ],
       dossiers: [],
-      auditLogs: []
+      auditLogs: [],
+      messages: []
     };
     
     await writeDB(db);
     console.log("Database seeded successfully with default users.");
+  }
+  // Ensure new collections exist for existing DBs
+  if (db && !Array.isArray(db.messages)) {
+    db.messages = [];
+    await writeDB(db);
   }
 };
 
@@ -265,11 +271,87 @@ app.delete('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]),
     }
 });
 
+// --- Messages Routes ---
+// Create a message (Accueil can notify divisions). Allow any authenticated user to send, but typical use is Accueil.
+app.post('/api/messages', authMiddleware, async (req, res) => {
+  const { content } = req.body;
+  const { userId, role } = req.user;
+  if (!content) {
+    return res.status(400).json({ message: 'Contenu requis.' });
+  }
+  try {
+    const db = await readDB();
+    const targets = [ROLES.GESTION, ROLES.CHEF_DIVISION, ROLES.CAISSE];
+    const now = Date.now();
+    const createdAt = new Date().toISOString();
+    const createdMessages = targets.map((toRole, idx) => ({
+      id: `msg_${now}_${idx}`,
+      fromUserId: userId,
+      fromRole: role,
+      toRole,
+      content,
+      createdAt,
+      confirmed: false,
+      confirmedBy: null,
+      confirmedAt: null
+    }));
+    db.messages.push(...createdMessages);
+    db.auditLogs.push({ user: userId, role, action: `Broadcast message created to divisions (${targets.join(', ')})`, timestamp: createdAt });
+    await writeDB(db);
+    res.status(201).json(createdMessages);
+  } catch (error) {
+    console.error('Error creating message:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la création du message.' });
+  }
+});
+
+// Get messages. If Accueil (or any non-target role), return messages sent by that user. If role is Gestion/Chef, return messages addressed to that role.
+app.get('/api/messages', authMiddleware, async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const db = await readDB();
+    let messages = [];
+    if (role === ROLES.GESTION || role === ROLES.CHEF_DIVISION || role === ROLES.CAISSE) {
+      messages = db.messages.filter(m => m.toRole === role);
+    } else {
+      messages = db.messages.filter(m => m.fromUserId === userId);
+    }
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des messages.' });
+  }
+});
+
+// Confirm a message (only target division roles)
+app.put('/api/messages/:id/confirm', authMiddleware, roleAuth([ROLES.GESTION, ROLES.CHEF_DIVISION, ROLES.CAISSE]), async (req, res) => {
+  const { id } = req.params;
+  const { userId, role } = req.user;
+  try {
+    const db = await readDB();
+    const index = db.messages.findIndex(m => m.id === id);
+    if (index === -1) {
+      return res.status(404).json({ message: 'Message non trouvé.' });
+    }
+    const msg = db.messages[index];
+    if (msg.toRole !== role) {
+      return res.status(403).json({ message: 'Vous ne pouvez confirmer que les messages adressés à votre rôle.' });
+    }
+    db.messages[index] = { ...msg, confirmed: true, confirmedBy: userId, confirmedAt: new Date().toISOString() };
+    db.auditLogs.push({ user: userId, role, action: `Message ${id} confirmed`, timestamp: new Date().toISOString() });
+    await writeDB(db);
+    res.json(db.messages[index]);
+  } catch (error) {
+    console.error('Error confirming message:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la confirmation du message.' });
+  }
+});
+
 // --- Server ---
 const startServer = async () => {
   await initializeDatabase();
-  app.listen(port, () => {
-    console.log(`Le serveur backend est en écoute sur http://localhost:${port}`);
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`Le serveur backend est en écoute sur http://0.0.0.0:${port}`);
   });
 };
 

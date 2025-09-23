@@ -70,6 +70,65 @@
       "role": "Caisse",
       "action": "Dossier dos_1758606053552 updated",
       "timestamp": "2025-09-23T05:41:47.709Z"
+    },
+    {
+      "user": "user_accueil",
+      "role": "Accueil",
+      "action": "Broadcast message created to divisions (Gestion, Chef de Division, Caisse)",
+      "timestamp": "2025-09-23T08:15:48.412Z"
+    },
+    {
+      "user": "user_gestion",
+      "role": "Gestion",
+      "action": "Message msg_1758615348412_0 confirmed",
+      "timestamp": "2025-09-23T08:16:25.698Z"
+    },
+    {
+      "user": "user_chef_division",
+      "role": "Chef de Division",
+      "action": "Message msg_1758615348412_1 confirmed",
+      "timestamp": "2025-09-23T08:16:34.672Z"
+    },
+    {
+      "user": "user_caisse",
+      "role": "Caisse",
+      "action": "Message msg_1758615348412_2 confirmed",
+      "timestamp": "2025-09-23T08:19:12.357Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg_1758615348412_0",
+      "fromUserId": "user_accueil",
+      "fromRole": "Accueil",
+      "toRole": "Gestion",
+      "content": "hello",
+      "createdAt": "2025-09-23T08:15:48.412Z",
+      "confirmed": true,
+      "confirmedBy": "user_gestion",
+      "confirmedAt": "2025-09-23T08:16:25.698Z"
+    },
+    {
+      "id": "msg_1758615348412_1",
+      "fromUserId": "user_accueil",
+      "fromRole": "Accueil",
+      "toRole": "Chef de Division",
+      "content": "hello",
+      "createdAt": "2025-09-23T08:15:48.412Z",
+      "confirmed": true,
+      "confirmedBy": "user_chef_division",
+      "confirmedAt": "2025-09-23T08:16:34.672Z"
+    },
+    {
+      "id": "msg_1758615348412_2",
+      "fromUserId": "user_accueil",
+      "fromRole": "Accueil",
+      "toRole": "Caisse",
+      "content": "hello",
+      "createdAt": "2025-09-23T08:15:48.412Z",
+      "confirmed": true,
+      "confirmedBy": "user_caisse",
+      "confirmedAt": "2025-09-23T08:19:12.357Z"
     }
   ]
 }
