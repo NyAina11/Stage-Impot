@@ -23,6 +23,11 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             // Removed the rewrite rule here
           },
+          '/ws': {
+            target: 'ws://localhost:3001',
+            changeOrigin: true,
+            ws: true,
+          }
         },
       },
       preview: {
