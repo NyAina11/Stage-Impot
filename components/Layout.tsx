@@ -18,7 +18,8 @@ const RoleViewMap: Record<Role, React.ComponentType> = {
 };
 
 const Layout: React.FC = () => {
-  const { currentUser, logout } = useAppStore();
+  const { currentUser, logout, p2pConnected, p2pRoomId, connectP2P, disconnectP2P, remoteAudio } = useAppStore();
+  const [room, setRoom] = React.useState('');
 
   if (!currentUser) {
     return null; 
@@ -40,6 +41,24 @@ const Layout: React.FC = () => {
                 <span className="font-medium">{currentUser.name}</span>
                 <span className="text-gray-500 dark:text-gray-400">({currentUser.role})</span>
               </div>
+              <div className="flex items-center space-x-2">
+                {!p2pConnected ? (
+                  <>
+                    <input
+                      value={room}
+                      onChange={(e) => setRoom(e.target.value)}
+                      placeholder="Room ID"
+                      className="border rounded px-2 py-1 text-sm"
+                    />
+                    <Button variant="primary" onClick={() => room && connectP2P(room)}>Se connecter P2P</Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm text-green-600">P2P: {p2pRoomId}</span>
+                    <Button variant="secondary" onClick={disconnectP2P}>Quitter</Button>
+                  </>
+                )}
+              </div>
               <Button variant="secondary" onClick={logout} className="flex items-center space-x-2">
                 <LogOutIcon className="w-5 h-5" />
                 <span>Déconnexion</span>
@@ -50,6 +69,12 @@ const Layout: React.FC = () => {
       </header>
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {ViewComponent && <ViewComponent />}
+        {/* Hidden audio elements for remote streams */}
+        <div style={{ display: 'none' }}>
+          {remoteAudio.map(({ userId, stream }) => (
+            <audio key={userId} autoPlay ref={(el) => { if (el && stream) el.srcObject = stream; }} />
+          ))}
+        </div>
       </main>
     </div>
   );

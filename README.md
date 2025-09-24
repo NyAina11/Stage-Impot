@@ -1,41 +1,88 @@
 # Application de Suivi des Contributions Fiscales (ASCF)
 
-This is an internal web application to register, track, and archive the tax payment process.
+Cette application web interne permet d'enregistrer, suivre et archiver le processus de paiement des impôts.
 
-## Deployment with Docker
+## Architecture
 
-This application is configured to run inside a Docker container using Nginx to serve the static files.
+L'application est composée de deux services :
+- **Frontend** : Application React/Vite (port 3000)
+- **Backend** : API Node.js/Express (port 3001)
 
-### Prerequisites
+## Déploiement avec Docker
 
-- [Docker](https://docs.docker.com/get-docker/) installed on your machine.
-- [Docker Compose](https://docs.docker.com/compose/install/) (usually included with Docker Desktop).
+Cette application est configurée pour fonctionner dans des conteneurs Docker, permettant de tester le projet sans installer les dépendances sur votre machine.
 
-### How to Run
+### Prérequis
 
-1.  **Build and run the container using Docker Compose:**
+- [Docker](https://docs.docker.com/get-docker/) installé sur votre machine
+- [Docker Compose](https://docs.docker.com/compose/install/) (généralement inclus avec Docker Desktop)
 
-    Open your terminal in the project's root directory (where `docker-compose.yml` is located) and run the following command:
+### Comment démarrer l'application
+
+1. **Construire et démarrer les conteneurs avec Docker Compose :**
+
+    Ouvrez votre terminal dans le répertoire racine du projet (où se trouve `docker-compose.yml`) et exécutez la commande suivante :
 
     ```bash
     docker-compose up -d
     ```
 
-    This command will:
-    - Build the Docker image based on the `Dockerfile`.
-    - Create and start a container in detached mode (`-d`).
+    Cette commande va :
+    - Construire les images Docker pour le frontend et le backend
+    - Créer et démarrer les conteneurs en mode détaché (`-d`)
+    - Configurer le réseau entre les services
 
-2.  **Access the application:**
+2. **Accéder à l'application :**
 
-    Once the container is running, open your web browser and navigate to:
-    [http://localhost:8080](http://localhost:8080)
+    Une fois les conteneurs démarrés, ouvrez votre navigateur web et naviguez vers :
+    - **Frontend** : [http://localhost:3000](http://localhost:3000)
+    - **Backend API** : [http://localhost:3001](http://localhost:3001)
 
-### How to Stop
+### Comptes utilisateurs par défaut
 
-To stop the application, run the following command in the same directory:
+L'application crée automatiquement des comptes utilisateurs par défaut avec le mot de passe `password123` :
+
+- **Accueil** : `accueil_user`
+- **Gestion** : `gestion_user`
+- **Caisse** : `caisse_user`
+- **Chef de Division** : `chef_division_user`
+
+### Comment arrêter l'application
+
+Pour arrêter l'application, exécutez la commande suivante dans le même répertoire :
 
 ```bash
 docker-compose down
 ```
 
-This will stop and remove the container.
+Cette commande arrêtera et supprimera les conteneurs.
+
+### Commandes utiles
+
+```bash
+# Voir les logs des services
+docker-compose logs -f
+
+# Reconstruire les images
+docker-compose up --build
+
+# Arrêter et supprimer les volumes
+docker-compose down -v
+```
+
+## Développement local (sans Docker)
+
+Si vous préférez installer les dépendances localement :
+
+### Backend
+```bash
+cd server
+npm install
+npm start
+```
+
+### Frontend
+```bash
+npm install
+npm run dev
+```

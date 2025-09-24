@@ -60,3 +60,15 @@ export interface Dossier {
   cancelledAt?: string;
   reason?: string; 
 }
+
+export interface Message {
+  id: string;
+  fromUserId: string;
+  fromRole: Role;
+  toRole: Role;
+  content: string;
+  createdAt: string;
+  confirmed: boolean;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+}

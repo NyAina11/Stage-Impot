@@ -5,6 +5,9 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs').promises;
 const path = require('path');
 
+const http = require('http');
+const { WebSocketServer } = require('ws');
+
 const app = express();
 const port = 3001;
 const dbPath = path.join(__dirname, 'db.json');
@@ -66,11 +69,17 @@ const initializeDatabase = async () => {
         { id: "user_chef_division", username: "chef_division_user", password: hashedPassword, role: ROLES.CHEF_DIVISION },
       ],
       dossiers: [],
-      auditLogs: []
+      auditLogs: [],
+      messages: []
     };
     
     await writeDB(db);
     console.log("Database seeded successfully with default users.");
+  }
+  // Ensure new collections exist for existing DBs
+  if (db && !Array.isArray(db.messages)) {
+    db.messages = [];
+    await writeDB(db);
   }
 };
 
@@ -180,7 +189,12 @@ app.get('/api/auditlogs', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async
 app.get('/api/dossiers', authMiddleware, async (req, res) => {
     try {
         const db = await readDB();
-        res.json(db.dossiers);
+        const { limit, offset } = req.query;
+        const sorted = [...db.dossiers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const lim = Number(limit) || sorted.length;
+        const off = Number(offset) || 0;
+        const paged = sorted.slice(off, off + lim);
+        res.json({ items: paged, total: sorted.length });
     }  catch (error) {
         res.status(500).json({ message: 'Erreur du serveur lors de la récupération des dossiers.' });
     }
@@ -265,11 +279,177 @@ app.delete('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]),
     }
 });
 
+// --- Messages Routes ---
+// Create a message (Accueil can notify divisions). Allow any authenticated user to send, but typical use is Accueil.
+app.post('/api/messages', authMiddleware, async (req, res) => {
+  const { content } = req.body;
+  const { userId, role } = req.user;
+  if (!content) {
+    return res.status(400).json({ message: 'Contenu requis.' });
+  }
+  try {
+    const db = await readDB();
+    const targets = [ROLES.GESTION, ROLES.CHEF_DIVISION, ROLES.CAISSE];
+    const now = Date.now();
+    const createdAt = new Date().toISOString();
+    const createdMessages = targets.map((toRole, idx) => ({
+      id: `msg_${now}_${idx}`,
+      fromUserId: userId,
+      fromRole: role,
+      toRole,
+      content,
+      createdAt,
+      confirmed: false,
+      confirmedBy: null,
+      confirmedAt: null
+    }));
+    db.messages.push(...createdMessages);
+    db.auditLogs.push({ user: userId, role, action: `Broadcast message created to divisions (${targets.join(', ')})`, timestamp: createdAt });
+    await writeDB(db);
+    res.status(201).json(createdMessages);
+  } catch (error) {
+    console.error('Error creating message:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la création du message.' });
+  }
+});
+
+// Get messages. If Accueil (or any non-target role), return messages sent by that user. If role is Gestion/Chef, return messages addressed to that role.
+app.get('/api/messages', authMiddleware, async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const db = await readDB();
+    const { limit, offset } = req.query;
+    let messages = [];
+    if (role === ROLES.GESTION || role === ROLES.CHEF_DIVISION || role === ROLES.CAISSE) {
+      messages = db.messages.filter(m => m.toRole === role);
+    } else {
+      messages = db.messages.filter(m => m.fromUserId === userId);
+    }
+    const sorted = messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const lim = Number(limit) || sorted.length;
+    const off = Number(offset) || 0;
+    const paged = sorted.slice(off, off + lim);
+    res.json({ items: paged, total: sorted.length });
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des messages.' });
+  }
+});
+
+// Confirm a message (only target division roles)
+app.put('/api/messages/:id/confirm', authMiddleware, roleAuth([ROLES.GESTION, ROLES.CHEF_DIVISION, ROLES.CAISSE]), async (req, res) => {
+  const { id } = req.params;
+  const { userId, role } = req.user;
+  try {
+    const db = await readDB();
+    const index = db.messages.findIndex(m => m.id === id);
+    if (index === -1) {
+      return res.status(404).json({ message: 'Message non trouvé.' });
+    }
+    const msg = db.messages[index];
+    if (msg.toRole !== role) {
+      return res.status(403).json({ message: 'Vous ne pouvez confirmer que les messages adressés à votre rôle.' });
+    }
+    db.messages[index] = { ...msg, confirmed: true, confirmedBy: userId, confirmedAt: new Date().toISOString() };
+    db.auditLogs.push({ user: userId, role, action: `Message ${id} confirmed`, timestamp: new Date().toISOString() });
+    await writeDB(db);
+    res.json(db.messages[index]);
+  } catch (error) {
+    console.error('Error confirming message:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la confirmation du message.' });
+  }
+});
+
+// --- WebSocket Signaling Server (for WebRTC) ---
+// Simple room-based signaling: clients send {type:'join', room, userId} then exchange SDP/ICE via {type:'signal', room, toUserId?, payload}
+let wss;
+const clients = new Map(); // ws -> { userId, room }
+
+function broadcastToRoom(room, message, excludeWs) {
+  for (const [ws, meta] of clients.entries()) {
+    if (meta.room === room && ws !== excludeWs && ws.readyState === ws.OPEN) {
+      try { ws.send(JSON.stringify(message)); } catch (_) {}
+    }
+  }
+}
+
+function startWebSocketServer(server) {
+  wss = new WebSocketServer({ server, path: '/ws' });
+
+  wss.on('connection', (ws) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
+    ws.on('message', (data) => {
+      let msg;
+      try { msg = JSON.parse(data.toString()); } catch (_) { return; }
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.type === 'join') {
+        const { room, userId } = msg;
+        clients.set(ws, { room, userId });
+        ws.send(JSON.stringify({ type: 'joined', room, userId }));
+        // notify others
+        broadcastToRoom(room, { type: 'peer-joined', userId }, ws);
+        return;
+      }
+
+      if (msg.type === 'leave') {
+        const meta = clients.get(ws);
+        if (meta) {
+          broadcastToRoom(meta.room, { type: 'peer-left', userId: meta.userId }, ws);
+          clients.delete(ws);
+        }
+        return;
+      }
+
+      if (msg.type === 'signal') {
+        const meta = clients.get(ws);
+        if (!meta) return;
+        const { room, userId } = meta;
+        const { toUserId, payload } = msg;
+        const message = { type: 'signal', fromUserId: userId, payload };
+        if (toUserId) {
+          for (const [peerWs, peerMeta] of clients.entries()) {
+            if (peerMeta.room === room && peerMeta.userId === toUserId && peerWs.readyState === peerWs.OPEN) {
+              try { peerWs.send(JSON.stringify(message)); } catch (_) {}
+            }
+          }
+        } else {
+          broadcastToRoom(room, message, ws);
+        }
+        return;
+      }
+    });
+
+    ws.on('close', () => {
+      const meta = clients.get(ws);
+      if (meta) {
+        clients.delete(ws);
+        broadcastToRoom(meta.room, { type: 'peer-left', userId: meta.userId }, ws);
+      }
+    });
+  });
+
+  // Heartbeat
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) return ws.terminate();
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000);
+
+  wss.on('close', () => clearInterval(interval));
+}
+
 // --- Server ---
 const startServer = async () => {
   await initializeDatabase();
-  app.listen(port, () => {
-    console.log(`Le serveur backend est en écoute sur http://localhost:${port}`);
+  const server = http.createServer(app);
+  startWebSocketServer(server);
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`Le serveur backend est en écoute sur http://0.0.0.0:${port} (WebSocket /ws)`);
   });
 };
 
