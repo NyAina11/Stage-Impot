@@ -22,6 +22,7 @@ import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import DossierDetailModal from '../DossierDetailModal';
 import FilePlusIcon from '../icons/FilePlusIcon';
+import MessageCenterModal from '../MessageCenterModal';
 
 const AccueilView: React.FC = () => {
     const { dossiers, createDossier, fetchDossiers, dossiersLoading, dossiersError, currentUser, sendMessage, messages, messagesLoading, fetchMessages } = useAppStore();
@@ -41,7 +42,7 @@ const AccueilView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
     const [modalDossier, setModalDossier] = useState<any | null>(null);
-    const [messageContent, setMessageContent] = useState('');
+    const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
     
     const months = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre" ];
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -124,47 +125,15 @@ const AccueilView: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <Card>
-                <h2 className="text-xl font-bold mb-4">Envoyer un message à toutes les divisions</h2>
-                <div className="grid grid-cols-1 gap-4">
-                    <Input label="Message" id="messageContent" value={messageContent} onChange={e => setMessageContent(e.target.value)} required />
-                    <div className="text-right">
-                        <Button onClick={async () => { if(messageContent.trim()){ await sendMessage(messageContent.trim()); setMessageContent(''); } }} disabled={messagesLoading}>
-                            {messagesLoading ? 'Envoi...' : 'Envoyer à toutes les divisions'}
-                        </Button>
-                    </div>
-                </div>
-            </Card>
+            <div className="flex justify-end">
+                <Button onClick={() => setIsMessageModalOpen(true)}>
+                    Ouvrir la messagerie
+                </Button>
+            </div>
 
-            <Card>
-                <h2 className="text-xl font-bold mb-4">Mes messages envoyés</h2>
-                {messagesLoading && <p className="text-center text-primary-600 dark:text-primary-400">Chargement...</p>}
-                {!messagesLoading && messages.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400">Aucun message.</p>}
-                {!messagesLoading && messages.length > 0 && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                <tr>
-                                    <th className="px-6 py-3">Destinataire</th>
-                                    <th className="px-6 py-3">Contenu</th>
-                                    <th className="px-6 py-3">Date</th>
-                                    <th className="px-6 py-3">Statut</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {messages.map(m => (
-                                    <tr key={m.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                                        <td className="px-6 py-4">{m.toRole}</td>
-                                        <td className="px-6 py-4">{m.content}</td>
-                                        <td className="px-6 py-4">{new Date(m.createdAt).toLocaleString('fr-FR')}</td>
-                                        <td className="px-6 py-4">{m.confirmed ? 'Confirmé' : 'En attente'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
+            {isMessageModalOpen && (
+                <MessageCenterModal onClose={() => setIsMessageModalOpen(false)} />
+            )}
             <Card>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <h2 className="text-xl font-bold flex items-center space-x-2">
