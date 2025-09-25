@@ -186,7 +186,12 @@ app.get('/api/auditlogs', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async
 app.get('/api/dossiers', authMiddleware, async (req, res) => {
     try {
         const db = await readDB();
-        res.json(db.dossiers);
+        const { limit, offset } = req.query;
+        const sorted = [...db.dossiers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const lim = Number(limit) || sorted.length;
+        const off = Number(offset) || 0;
+        const paged = sorted.slice(off, off + lim);
+        res.json({ items: paged, total: sorted.length });
     }  catch (error) {
         res.status(500).json({ message: 'Erreur du serveur lors de la récupération des dossiers.' });
     }
@@ -310,13 +315,18 @@ app.get('/api/messages', authMiddleware, async (req, res) => {
   try {
     const { userId, role } = req.user;
     const db = await readDB();
+    const { limit, offset } = req.query;
     let messages = [];
     if (role === ROLES.GESTION || role === ROLES.CHEF_DIVISION || role === ROLES.CAISSE) {
       messages = db.messages.filter(m => m.toRole === role);
     } else {
       messages = db.messages.filter(m => m.fromUserId === userId);
     }
-    res.json(messages);
+    const sorted = messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const lim = Number(limit) || sorted.length;
+    const off = Number(offset) || 0;
+    const paged = sorted.slice(off, off + lim);
+    res.json({ items: paged, total: sorted.length });
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ message: 'Erreur du serveur lors de la récupération des messages.' });
