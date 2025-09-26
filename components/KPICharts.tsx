@@ -1,11 +1,11 @@
 
 import React, { useMemo } from 'react';
-import { DossierPaiement, DossierStatus } from '../types';
+import { Dossier, DossierStatus } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Card from './ui/Card';
 
 interface KPIChartsProps {
-  dossiers: DossierPaiement[];
+  dossiers: Dossier[];
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];

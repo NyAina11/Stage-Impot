@@ -37,7 +37,7 @@ const Layout: React.FC = () => {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-sm">
                 <UserCheckIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                <span className="font-medium">{currentUser.name}</span>
+                <span className="font-medium">{currentUser.username}</span>
                 <span className="text-gray-500 dark:text-gray-400">({currentUser.role})</span>
               </div>
               <Button variant="secondary" onClick={logout} className="flex items-center space-x-2">
