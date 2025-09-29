@@ -1,13 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../../store/useAppStore.tsx';
 import { Dossier, DossierStatus, PaymentMethod } from '../../types'; 
 import Button from '../ui/Button';
 import Card from '../ui/Card';
-import Badge from '../ui/Badge';
+
 import DossierDetailModal from '../DossierDetailModal';
 
 const CaisseView: React.FC = () => {
-    const { dossiers, confirmPayment, messages, fetchMessages, confirmMessage, messagesLoading } = useAppStore();
+    const { dossiers, confirmPayment } = useAppStore();
     const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null); 
     const [dossierToPay, setDossierToPay] = useState<Dossier | null>(null); 
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.ESPECE);
@@ -96,48 +96,7 @@ const CaisseView: React.FC = () => {
         </tr>
     );
 
-    useEffect(() => {
-        fetchMessages();
-    }, [fetchMessages]);
 
-    return (
-        <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Interface de Caisse</h1>
-            <Card>
-                <h2 className="text-xl font-bold mb-4">Messages reçus</h2>
-                {messagesLoading && <p className="text-center text-primary-600 dark:text-primary-400">Chargement...</p>}
-                {!messagesLoading && messages.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400">Aucun message.</p>}
-                {!messagesLoading && messages.length > 0 && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                <tr>
-                                    <th className="px-6 py-3">De</th>
-                                    <th className="px-6 py-3">Contenu</th>
-                                    <th className="px-6 py-3">Date</th>
-                                    <th className="px-6 py-3">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {messages.map(m => (
-                                    <tr key={m.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                                        <td className="px-6 py-4">{m.fromRole}</td>
-                                        <td className="px-6 py-4">{m.content}</td>
-                                        <td className="px-6 py-4">{new Date(m.createdAt).toLocaleString('fr-FR')}</td>
-                                        <td className="px-6 py-4">
-                                            {m.confirmed ? (
-                                                <span className="text-green-600">Confirmé</span>
-                                            ) : (
-                                                <Button onClick={() => confirmMessage(m.id)}>Confirmer</Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
             <Card>
                 <h2 className="text-xl font-bold mb-4">Statistiques des Paiements</h2>
                 <div className="overflow-x-auto">

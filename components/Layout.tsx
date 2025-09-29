@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Role } from '../types';
 import AccueilView from './views/AccueilView';
@@ -9,6 +9,8 @@ import ChefDivisionView from './views/ChefDivisionView';
 import Button from './ui/Button';
 import LogOutIcon from './icons/LogOutIcon';
 import UserCheckIcon from './icons/UserCheckIcon';
+import BellIcon from './icons/BellIcon';
+import NotificationCenter from './NotificationCenter';
 
 const RoleViewMap: Record<Role, React.ComponentType> = {
   [Role.ACCUEIL]: AccueilView,
@@ -18,13 +20,21 @@ const RoleViewMap: Record<Role, React.ComponentType> = {
 };
 
 const Layout: React.FC = () => {
-  const { currentUser, logout } = useAppStore();
+  const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead } = useAppStore();
+  const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   if (!currentUser) {
     return null; 
   }
 
   const ViewComponent = RoleViewMap[currentUser.role];
+
+  const handleNotificationClick = () => {
+    setNotificationCenterOpen(true);
+    if (unreadMessageCount > 0) {
+      markAllMessagesAsRead();
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -40,6 +50,14 @@ const Layout: React.FC = () => {
                 <span className="font-medium">{currentUser.username}</span>
                 <span className="text-gray-500 dark:text-gray-400">({currentUser.role})</span>
               </div>
+              <div className="relative">
+                <Button variant="ghost" onClick={handleNotificationClick} className="relative">
+                  <BellIcon className="w-6 h-6" />
+                  {unreadMessageCount > 0 && (
+                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />
+                  )}
+                </Button>
+              </div>
               <Button variant="secondary" onClick={logout} className="flex items-center space-x-2">
                 <LogOutIcon className="w-5 h-5" />
                 <span>Déconnexion</span>
@@ -51,8 +69,10 @@ const Layout: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {ViewComponent && <ViewComponent />}
       </main>
+      {isNotificationCenterOpen && <NotificationCenter onClose={() => setNotificationCenterOpen(false)} />}
     </div>
   );
 };
 
 export default Layout;
+

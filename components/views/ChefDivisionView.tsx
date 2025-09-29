@@ -21,14 +21,14 @@ import DossierDetailModal from '../DossierDetailModal';
 import KPICharts from '../KPICharts';
 
 const ChefDivisionView: React.FC = () => {
-    const { dossiers, cancelDossier, messages, fetchMessages, confirmMessage, messagesLoading } = useAppStore();
+    const { dossiers, cancelDossier } = useAppStore();
     const [filters, setFilters] = useState({
         searchTerm: '',
         status: '',
         startDate: '',
         endDate: '',
     });
-        const [selectedDossier, setSelectedDossier] = useState<any | null>(null);
+
     const [modalDossier, setModalDossier] = useState<any | null>(null);
         const [dossierToCancel, setDossierToCancel] = useState<any | null>(null);
     const [cancelReason, setCancelReason] = useState('');
@@ -37,9 +37,7 @@ const ChefDivisionView: React.FC = () => {
         setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    React.useEffect(() => {
-        fetchMessages();
-    }, [fetchMessages]);
+
 
     const filteredDossiers = useMemo(() => {
         return dossiers.filter(d => {
@@ -75,41 +73,7 @@ const ChefDivisionView: React.FC = () => {
         <div className="space-y-8">
             <h1 className="text-3xl font-bold">Tableau de bord - Chef de Division</h1>
             <KPICharts dossiers={dossiers.map(mapDossierToDossierPaiement)} />
-            <Card>
-                <h2 className="text-xl font-bold mb-4">Messages reçus</h2>
-                {messagesLoading && <p className="text-center text-primary-600 dark:text-primary-400">Chargement...</p>}
-                {!messagesLoading && messages.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400">Aucun message.</p>}
-                {!messagesLoading && messages.length > 0 && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                <tr>
-                                    <th className="px-6 py-3">De</th>
-                                    <th className="px-6 py-3">Contenu</th>
-                                    <th className="px-6 py-3">Date</th>
-                                    <th className="px-6 py-3">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {messages.map(m => (
-                                    <tr key={m.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                                        <td className="px-6 py-4">{m.fromRole}</td>
-                                        <td className="px-6 py-4">{m.content}</td>
-                                        <td className="px-6 py-4">{new Date(m.createdAt).toLocaleString('fr-FR')}</td>
-                                        <td className="px-6 py-4">
-                                            {m.confirmed ? (
-                                                <span className="text-green-600">Confirmé</span>
-                                            ) : (
-                                                <Button onClick={() => confirmMessage(m.id)}>Confirmer</Button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
+
             <Card>
                 <h2 className="text-xl font-bold mb-4">Consultation de tous les dossiers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">

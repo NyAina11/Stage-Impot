@@ -11,6 +11,7 @@ interface AppState {
   messages: Message[];
   messagesLoading: boolean;
   messagesError: string | null;
+  unreadMessageCount: number;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   logout: () => void;
@@ -23,6 +24,7 @@ interface AppState {
   fetchMessages: (params?: { limit?: number; offset?: number }, append?: boolean) => Promise<{ fetched: number; total: number } | void>;
   sendMessage: (content: string) => Promise<void>;
   confirmMessage: (id: string) => Promise<void>;
+  markAllMessagesAsRead: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -44,6 +46,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [messages, setMessages] = useState<Message[]>([]);
     const [messagesLoading, setMessagesLoading] = useState<boolean>(false);
     const [messagesError, setMessagesError] = useState<string | null>(null);
+    const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
+
+
+    useEffect(() => {
+        const unconfirmedCount = messages.filter(m => !m.confirmed).length;
+        setUnreadMessageCount(unconfirmedCount);
+    }, [messages]);
 
     const fetchDossiers = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
         if (!token) return;
@@ -228,6 +237,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
+    const markAllMessagesAsRead = async () => {
+        const unconfirmedMessages = messages.filter(m => !m.confirmed);
+        for (const message of unconfirmedMessages) {
+            try {
+                await confirmMessage(message.id);
+            } catch (error) {
+                console.error(`Failed to confirm message ${message.id}`, error);
+                // Optionally, handle individual confirmation errors
+            }
+        }
+    };
+
+
     const value = {
         dossiers,
         currentUser,
@@ -237,6 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         messages,
         messagesLoading,
         messagesError,
+        unreadMessageCount,
         setUser,
         setToken: handleSetToken,
         logout,
@@ -248,7 +271,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteDossier,
         fetchMessages,
         sendMessage,
-        confirmMessage
+        confirmMessage,
+        markAllMessagesAsRead
     };
 
     return (
