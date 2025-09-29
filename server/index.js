@@ -357,6 +357,75 @@ app.put('/api/messages/:id/confirm', authMiddleware, roleAuth([ROLES.GESTION, RO
   }
 });
 
+// --- Personnel Routes ---
+app.get('/api/personnel', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
+    try {
+        const db = await readDB();
+        res.json(db.personnel);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur du serveur lors de la récupération du personnel.' });
+    }
+});
+
+app.post('/api/personnel', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
+    const { name, division, affectation } = req.body;
+    if (!name || !division || !affectation) {
+        return res.status(400).json({ message: 'Le nom, la division et l\'affectation sont requis.' });
+    }
+    try {
+        const db = await readDB();
+        const newPersonnel = {
+            id: `pers_${Date.now()}`,
+            name,
+            division,
+            affectation,
+        };
+        db.personnel.push(newPersonnel);
+        await writeDB(db);
+        res.status(201).json(newPersonnel);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur du serveur lors de la création du personnel.' });
+    }
+});
+
+app.put('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
+    const { id } = req.params;
+    const { name, division, affectation } = req.body;
+    if (!name || !division || !affectation) {
+        return res.status(400).json({ message: 'Le nom, la division et l\'affectation sont requis.' });
+    }
+    try {
+        const db = await readDB();
+        const personnelIndex = db.personnel.findIndex(p => p.id === id);
+        if (personnelIndex === -1) {
+            return res.status(404).json({ message: 'Personnel non trouvé.' });
+        }
+        db.personnel[personnelIndex] = { ...db.personnel[personnelIndex], name, division, affectation };
+        await writeDB(db);
+        res.json(db.personnel[personnelIndex]);
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour du personnel.' });
+    }
+});
+
+app.delete('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
+    const { id } = req.params;
+    try {
+        const db = await readDB();
+        const initialLength = db.personnel.length;
+        db.personnel = db.personnel.filter(p => p.id !== id);
+        if (db.personnel.length === initialLength) {
+            return res.status(404).json({ message: 'Personnel non trouvé.' });
+        }
+        await writeDB(db);
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur du serveur lors de la suppression du personnel.' });
+    }
+});
+
+
+
 // --- Server ---
 const startServer = async () => {
   await initializeDatabase();

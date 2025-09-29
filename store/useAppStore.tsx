@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Dossier, User, DossierStatus, TaxDetail, PaymentMethod, Message } from '../types';
-import { getDossiers, createDossier as apiCreateDossier, updateDossier as apiUpdateDossier, deleteDossier as apiDeleteDossier, sendMessage as apiSendMessage, getMessages as apiGetMessages, confirmMessage as apiConfirmMessage } from '../src/services/api';
+import { Dossier, User, DossierStatus, TaxDetail, PaymentMethod, Message, Personnel } from '../types';
+import { getDossiers, createDossier as apiCreateDossier, updateDossier as apiUpdateDossier, deleteDossier as apiDeleteDossier, sendMessage as apiSendMessage, getMessages as apiGetMessages, confirmMessage as apiConfirmMessage, getPersonnel, createPersonnel, updatePersonnel as apiUpdatePersonnel, deletePersonnel as apiDeletePersonnel } from '../src/services/api';
 
 interface AppState {
   dossiers: Dossier[];
@@ -12,6 +12,9 @@ interface AppState {
   messagesLoading: boolean;
   messagesError: string | null;
   unreadMessageCount: number;
+  personnel: Personnel[];
+  personnelLoading: boolean;
+  personnelError: string | null;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   logout: () => void;
@@ -25,6 +28,10 @@ interface AppState {
   sendMessage: (content: string) => Promise<void>;
   confirmMessage: (id: string) => Promise<void>;
   markAllMessagesAsRead: () => Promise<void>;
+  fetchPersonnel: () => Promise<void>;
+  addPersonnel: (personnelData: Omit<Personnel, 'id'>) => Promise<void>;
+  updatePersonnel: (personnelId: string, personnelData: Omit<Personnel, 'id'>) => Promise<void>;
+  deletePersonnel: (personnelId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -47,6 +54,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [messagesLoading, setMessagesLoading] = useState<boolean>(false);
     const [messagesError, setMessagesError] = useState<string | null>(null);
     const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
+    const [personnel, setPersonnel] = useState<Personnel[]>([]);
+    const [personnelLoading, setPersonnelLoading] = useState<boolean>(false);
+    const [personnelError, setPersonnelError] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -249,6 +259,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
+    const fetchPersonnel = async () => {
+        if (!token) return;
+        setPersonnelLoading(true);
+        setPersonnelError(null);
+        try {
+            const response = await getPersonnel();
+            setPersonnel(response.data);
+        } catch (error: any) {
+            setPersonnelError(error.response?.data?.message || 'Échec de la récupération du personnel.');
+        } finally {
+            setPersonnelLoading(false);
+        }
+    };
+
+    const addPersonnel = async (personnelData: Omit<Personnel, 'id'>) => {
+        if (!currentUser) throw new Error("User not authenticated");
+        setPersonnelLoading(true);
+        try {
+            const response = await createPersonnel(personnelData);
+            setPersonnel(prev => [...prev, response.data]);
+        } catch (error: any) {
+            setPersonnelError(error.response?.data?.message || 'Échec de l\'ajout du personnel.');
+            throw error;
+        } finally {
+            setPersonnelLoading(false);
+        }
+    };
+
+    const updatePersonnel = async (personnelId: string, personnelData: Omit<Personnel, 'id'>) => {
+        if (!currentUser) throw new Error("User not authenticated");
+        setPersonnelLoading(true);
+        try {
+            const response = await apiUpdatePersonnel(personnelId, personnelData);
+            setPersonnel(prev => prev.map(p => (p.id === personnelId ? response.data : p)));
+        } catch (error: any) {
+            setPersonnelError(error.response?.data?.message || 'Échec de la mise à jour du personnel.');
+            throw error;
+        } finally {
+            setPersonnelLoading(false);
+        }
+    };
+
+    const deletePersonnel = async (personnelId: string) => {
+        try {
+            await apiDeletePersonnel(personnelId);
+            setPersonnel(prev => prev.filter(p => p.id !== personnelId));
+        } catch (error: any) {
+            setPersonnelError(error.response?.data?.message || 'Échec de la suppression du personnel.');
+            throw error;
+        }
+    };
+
+
 
     const value = {
         dossiers,
@@ -260,6 +323,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         messagesLoading,
         messagesError,
         unreadMessageCount,
+        personnel,
+        personnelLoading,
+        personnelError,
         setUser,
         setToken: handleSetToken,
         logout,
@@ -272,7 +338,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchMessages,
         sendMessage,
         confirmMessage,
-        markAllMessagesAsRead
+        markAllMessagesAsRead,
+        fetchPersonnel,
+        addPersonnel,
+        updatePersonnel,
+        deletePersonnel
     };
 
     return (

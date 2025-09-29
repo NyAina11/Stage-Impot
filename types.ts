@@ -72,3 +72,10 @@ export interface Message {
   confirmedBy: string | null;
   confirmedAt: string | null;
 }
+
+export interface Personnel {
+  id: string;
+  name: string;
+  division: Role;
+  affectation: string;
+}

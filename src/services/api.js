@@ -40,3 +40,9 @@ export const getAuditLogs = () => apiClient.get('/auditlogs');
 export const sendMessage = (content) => apiClient.post('/messages', { content });
 export const getMessages = (params) => apiClient.get('/messages', { params });
 export const confirmMessage = (id) => apiClient.put(`/messages/${id}/confirm`);
+
+// --- Personnel Service ---
+export const getPersonnel = () => apiClient.get('/personnel');
+export const createPersonnel = (personnelData) => apiClient.post('/personnel', personnelData);
+export const updatePersonnel = (id, personnelData) => apiClient.put(`/personnel/${id}`, personnelData);
+export const deletePersonnel = (id) => apiClient.delete(`/personnel/${id}`);

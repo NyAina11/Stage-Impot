@@ -11,6 +11,7 @@ import LogOutIcon from './icons/LogOutIcon';
 import UserCheckIcon from './icons/UserCheckIcon';
 import BellIcon from './icons/BellIcon';
 import NotificationCenter from './NotificationCenter';
+import PersonnelManagement from './PersonnelManagement';
 
 const RoleViewMap: Record<Role, React.ComponentType> = {
   [Role.ACCUEIL]: AccueilView,
@@ -22,6 +23,7 @@ const RoleViewMap: Record<Role, React.ComponentType> = {
 const Layout: React.FC = () => {
   const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead } = useAppStore();
   const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [showPersonnelManagement, setShowPersonnelManagement] = useState(false);
 
   if (!currentUser) {
     return null; 
@@ -62,12 +64,17 @@ const Layout: React.FC = () => {
                 <LogOutIcon className="w-5 h-5" />
                 <span>Déconnexion</span>
               </Button>
+              {currentUser.role === Role.CHEF_DIVISION && (
+                <Button onClick={() => setShowPersonnelManagement(!showPersonnelManagement)}>
+                  {showPersonnelManagement ? 'Voir le tableau de bord' : 'Gérer le personnel'}
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </header>
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {ViewComponent && <ViewComponent />}
+        {showPersonnelManagement ? <PersonnelManagement /> : (ViewComponent && <ViewComponent />)}
       </main>
       {isNotificationCenterOpen && <NotificationCenter onClose={() => setNotificationCenterOpen(false)} />}
     </div>
