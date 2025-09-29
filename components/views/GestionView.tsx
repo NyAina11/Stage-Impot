@@ -1,4 +1,24 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useAppStore } from '../../store/useAppStore.tsx';
+import { Dossier, DossierStatus, TaxDetail } from '../../types'; 
+
+function mapDossierToDossierPaiement(dossier: any): any {
+    return {
+        ...dossier,
+        amountDue: dossier.totalAmount ?? 0,
+        creationDate: dossier.createdAt,
+        validationDate: dossier.updatedAt || dossier.validationDate,
+        paidTo: dossier.paymentDetails?.processedBy || '',
+        paymentDate: dossier.paymentDetails?.processedAt || dossier.paymentDate,
+        cancellationReason: dossier.reason,
+        history: [],
+    };
+}
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Card from '../ui/Card';
+import Badge from '../ui/Badge';
+import DossierDetailModal from '../DossierDetailModal';
 
 const GestionView: React.FC = () => {
     const { dossiers, updateDossierTaxAmounts, fetchDossiers, dossiersLoading, dossiersError } = useAppStore();
