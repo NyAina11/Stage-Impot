@@ -86,17 +86,9 @@ const CaisseView: React.FC = () => {
 
     const isConfirmDisabled = paymentMethod === PaymentMethod.VIREMENT && !bankName.trim();
 
-    const StatRow: React.FC<{title: string, stats: any}> = ({title, stats}) => (
-        <tr className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{title}</td>
-            <td className="px-6 py-4 text-right">{stats[PaymentMethod.ESPECE].toLocaleString('fr-FR')} Ar</td>
-            <td className="px-6 py-4 text-right">{stats[PaymentMethod.CHEQUE].toLocaleString('fr-FR')} Ar</td>
-            <td className="px-6 py-4 text-right">{stats[PaymentMethod.VIREMENT].toLocaleString('fr-FR')} Ar</td>
-            <td className="px-6 py-4 text-right font-bold text-primary-600 dark:text-primary-400">{stats.total.toLocaleString('fr-FR')} Ar</td>
-        </tr>
-    );
-
-
+    return (
+        <div className="space-y-8">
+            <h1 className="text-3xl font-bold">Interface de Caisse</h1>
             <Card>
                 <h2 className="text-xl font-bold mb-4">Statistiques des Paiements</h2>
                 <div className="overflow-x-auto">
