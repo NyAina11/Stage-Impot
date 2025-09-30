@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { DossierStatus } from '../../types';
+import PersonnelManagement from '../PersonnelManagement';
 
 function mapDossierToDossierPaiement(dossier: any): any {
     return {
@@ -21,13 +22,17 @@ import DossierDetailModal from '../DossierDetailModal';
 import KPICharts from '../KPICharts';
 
 const ChefDivisionView: React.FC = () => {
-    const { dossiers, cancelDossier } = useAppStore();
+    const { dossiers, cancelDossier, fetchPersonnel } = useAppStore();
     const [filters, setFilters] = useState({
         searchTerm: '',
         status: '',
         startDate: '',
         endDate: '',
     });
+
+    useEffect(() => {
+        fetchPersonnel();
+    }, [fetchPersonnel]);
 
     const [modalDossier, setModalDossier] = useState<any | null>(null);
         const [dossierToCancel, setDossierToCancel] = useState<any | null>(null);
@@ -138,6 +143,8 @@ const ChefDivisionView: React.FC = () => {
                     </Card>
                 </div>
             )}
+
+            <PersonnelManagement />
         </div>
     );
 };
