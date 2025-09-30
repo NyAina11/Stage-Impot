@@ -80,7 +80,7 @@ const ChefDivisionView: React.FC = () => {
     const renderContent = () => {
         switch (currentView) {
             case 'personnel':
-                return <PersonnelManagement />;
+                return <PersonnelManagement setCurrentView={setCurrentView} />;
             case 'historique':
                 return <HistoriquePersonnelView />;
             default:
@@ -145,9 +145,6 @@ const ChefDivisionView: React.FC = () => {
                 </Button>
                 <Button variant={currentView === 'personnel' ? 'default' : 'ghost'} onClick={() => setCurrentView('personnel')}>
                     Gérer le Personnel
-                </Button>
-                <Button variant={currentView === 'historique' ? 'default' : 'ghost'} onClick={() => setCurrentView('historique')}>
-                    Voir l'Historique
                 </Button>
             </div>
 
