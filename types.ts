@@ -78,4 +78,12 @@ export interface Personnel {
   name: string;
   division: Role;
   affectation: string;
+  history: PersonnelHistory[];
+}
+
+export interface PersonnelHistory {
+  division: Role;
+  affectation: string;
+  startDate: string;
+  endDate: string | null;
 }
