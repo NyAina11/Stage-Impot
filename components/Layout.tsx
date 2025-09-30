@@ -12,6 +12,7 @@ import UserCheckIcon from './icons/UserCheckIcon';
 import BellIcon from './icons/BellIcon';
 import NotificationCenter from './NotificationCenter';
 import PersonnelManagement from './PersonnelManagement';
+import HistoriquePersonnelView from './views/HistoriquePersonnelView';
 
 const RoleViewMap: Record<Role, React.ComponentType> = {
   [Role.ACCUEIL]: AccueilView,
@@ -24,6 +25,7 @@ const Layout: React.FC = () => {
   const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead } = useAppStore();
   const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
   const [showPersonnelManagement, setShowPersonnelManagement] = useState(false);
+  const [showPersonnelHistory, setShowPersonnelHistory] = useState(false);
 
   if (!currentUser) {
     return null; 
@@ -65,16 +67,27 @@ const Layout: React.FC = () => {
                 <span>Déconnexion</span>
               </Button>
               {currentUser.role === Role.CHEF_DIVISION && (
-                <Button onClick={() => setShowPersonnelManagement(!showPersonnelManagement)}>
-                  {showPersonnelManagement ? 'Voir le tableau de bord' : 'Gérer le personnel'}
-                </Button>
+                <>
+                  <Button onClick={() => setShowPersonnelManagement(!showPersonnelManagement)}>
+                    {showPersonnelManagement ? 'Voir le tableau de bord' : 'Gérer le personnel'}
+                  </Button>
+                  <Button onClick={() => setShowPersonnelHistory(!showPersonnelHistory)}>
+                    {showPersonnelHistory ? 'Voir le tableau de bord' : 'Voir l\'historique'}
+                  </Button>
+                </>
               )}
             </div>
           </div>
         </div>
       </header>
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {showPersonnelManagement ? <PersonnelManagement /> : (ViewComponent && <ViewComponent />)}
+        {showPersonnelManagement ? (
+          <PersonnelManagement />
+        ) : showPersonnelHistory ? (
+          <HistoriquePersonnelView />
+        ) : (
+          ViewComponent && <ViewComponent />
+        )}
       </main>
       {isNotificationCenterOpen && <NotificationCenter onClose={() => setNotificationCenterOpen(false)} />}
     </div>
