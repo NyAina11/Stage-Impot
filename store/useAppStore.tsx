@@ -86,9 +86,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (token && currentUser) {
             fetchDossiers();
             fetchMessages();
+            // Charger le personnel pour le Chef de Division
+            if (currentUser.role === 'Chef de Division') {
+                fetchPersonnel();
+            }
         } else {
             setDossiers([]);
             setMessages([]);
+            setPersonnel([]);
         }
     }, [token, currentUser, fetchDossiers]);
 

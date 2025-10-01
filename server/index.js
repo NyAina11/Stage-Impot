@@ -67,7 +67,8 @@ const initializeDatabase = async () => {
       ],
       dossiers: [],
       auditLogs: [],
-      messages: []
+      messages: [],
+      personnel: []
     };
     
     await writeDB(db);
@@ -76,6 +77,10 @@ const initializeDatabase = async () => {
   // Ensure new collections exist for existing DBs
   if (db && !Array.isArray(db.messages)) {
     db.messages = [];
+    await writeDB(db);
+  }
+  if (db && !Array.isArray(db.personnel)) {
+    db.personnel = [];
     await writeDB(db);
   }
 };
@@ -369,28 +374,39 @@ app.get('/api/personnel', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async
 
 app.post('/api/personnel', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
     const { name, division, affectation } = req.body;
+    const { userId, role } = req.user;
     if (!name || !division || !affectation) {
         return res.status(400).json({ message: 'Le nom, la division et l\'affectation sont requis.' });
     }
     try {
         const db = await readDB();
+        const now = new Date().toISOString();
         const newPersonnel = {
             id: `pers_${Date.now()}`,
             name,
             division,
             affectation,
+            history: [{
+                division,
+                affectation,
+                startDate: now,
+                endDate: null
+            }]
         };
         db.personnel.push(newPersonnel);
+        db.auditLogs.push({ user: userId, role, action: `Personnel ${newPersonnel.id} created`, timestamp: now });
         await writeDB(db);
         res.status(201).json(newPersonnel);
     } catch (error) {
+        console.error("Error creating personnel:", error);
         res.status(500).json({ message: 'Erreur du serveur lors de la création du personnel.' });
     }
 });
 
 app.put('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
     const { id } = req.params;
-    const { name, division, affectation } = req.body;
+    const { name, division, affectation, history } = req.body;
+    const { userId, role } = req.user;
     if (!name || !division || !affectation) {
         return res.status(400).json({ message: 'Le nom, la division et l\'affectation sont requis.' });
     }
@@ -400,16 +416,60 @@ app.put('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), a
         if (personnelIndex === -1) {
             return res.status(404).json({ message: 'Personnel non trouvé.' });
         }
-        db.personnel[personnelIndex] = { ...db.personnel[personnelIndex], name, division, affectation };
+        
+        const currentPersonnel = db.personnel[personnelIndex];
+        const now = new Date().toISOString();
+        
+        // Si l'historique est fourni depuis le frontend (pour les modifications complexes)
+        let updatedHistory = history || currentPersonnel.history || [];
+        
+        // Sinon, gestion automatique de l'historique pour les modifications simples
+        if (!history) {
+            const currentHistory = currentPersonnel.history || [];
+            const latestHistory = currentHistory.length > 0 ? currentHistory[currentHistory.length - 1] : null;
+            
+            // Vérifier si c'est une nouvelle affectation
+            const isNewAssignment = !latestHistory || 
+                                  latestHistory.division !== division || 
+                                  latestHistory.affectation !== affectation;
+            
+            if (isNewAssignment) {
+                updatedHistory = [...currentHistory];
+                // Fermer l'affectation précédente
+                if (latestHistory && !latestHistory.endDate) {
+                    updatedHistory[updatedHistory.length - 1] = { ...latestHistory, endDate: now };
+                }
+                // Ajouter la nouvelle affectation
+                updatedHistory.push({
+                    division,
+                    affectation,
+                    startDate: now,
+                    endDate: null
+                });
+            }
+        }
+        
+        const updatedPersonnel = {
+            ...currentPersonnel,
+            name,
+            division,
+            affectation,
+            history: updatedHistory
+        };
+        
+        db.personnel[personnelIndex] = updatedPersonnel;
+        db.auditLogs.push({ user: userId, role, action: `Personnel ${id} updated`, timestamp: now });
         await writeDB(db);
-        res.json(db.personnel[personnelIndex]);
+        res.json(updatedPersonnel);
     } catch (error) {
+        console.error("Error updating personnel:", error);
         res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour du personnel.' });
     }
 });
 
 app.delete('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
     const { id } = req.params;
+    const { userId, role } = req.user;
     try {
         const db = await readDB();
         const initialLength = db.personnel.length;
@@ -417,9 +477,11 @@ app.delete('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION])
         if (db.personnel.length === initialLength) {
             return res.status(404).json({ message: 'Personnel non trouvé.' });
         }
+        db.auditLogs.push({ user: userId, role, action: `Personnel ${id} deleted`, timestamp: new Date().toISOString() });
         await writeDB(db);
         res.status(204).send();
     } catch (error) {
+        console.error("Error deleting personnel:", error);
         res.status(500).json({ message: 'Erreur du serveur lors de la suppression du personnel.' });
     }
 });
