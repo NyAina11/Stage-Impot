@@ -265,7 +265,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setPersonnelError(null);
         try {
             const response = await getPersonnel();
-            setPersonnel(response.data);
+            const personnelWithHistory = response.data.map(p => ({
+                ...p,
+                history: p.history || [],
+            }));
+            setPersonnel(personnelWithHistory);
         } catch (error: any) {
             setPersonnelError(error.response?.data?.message || 'Échec de la récupération du personnel.');
         } finally {
