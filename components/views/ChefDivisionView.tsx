@@ -21,17 +21,7 @@ import DossierDetailModal from '../DossierDetailModal';
 import KPICharts from '../KPICharts';
 
 const ChefDivisionView: React.FC = () => {
-    const { dossiers, cancelDossier, fetchPersonnel } = useAppStore();
-    const [filters, setFilters] = useState({
-        searchTerm: '',
-        status: '',
-        startDate: '',
-        endDate: '',
-    });
-
-    useEffect(() => {
-        fetchPersonnel();
-    }, [fetchPersonnel]);
+    const { dossiers, cancelDossier } = useAppStore();
 
     const [modalDossier, setModalDossier] = useState<any | null>(null);
         const [dossierToCancel, setDossierToCancel] = useState<any | null>(null);

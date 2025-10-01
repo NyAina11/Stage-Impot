@@ -3,11 +3,7 @@ import { useAppStore } from '../../store/useAppStore';
 import Card from '../ui/Card';
 
 const HistoriquePersonnelView: React.FC = () => {
-  const { personnel, fetchPersonnel } = useAppStore();
-
-  useEffect(() => {
-    fetchPersonnel();
-  }, [fetchPersonnel]);
+  const { personnel } = useAppStore();
 
   return (
     <div className="space-y-8">

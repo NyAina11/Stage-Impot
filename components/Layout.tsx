@@ -22,9 +22,15 @@ const RoleViewMap: Record<Role, React.ComponentType> = {
 };
 
 const Layout: React.FC = () => {
-  const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead } = useAppStore();
+  const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead, fetchPersonnel } = useAppStore();
   const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
   const [view, setView] = useState('dashboard');
+
+  useEffect(() => {
+    if (currentUser?.role === Role.CHEF_DIVISION) {
+      fetchPersonnel();
+    }
+  }, [currentUser, fetchPersonnel]);
 
   if (!currentUser) {
     return null; 
