@@ -6,11 +6,7 @@ import Button from './ui/Button';
 import Card from './ui/Card';
 import Input from './ui/Input';
 
-interface PersonnelManagementProps {
-  setCurrentView: (view: string) => void;
-}
-
-const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ setCurrentView }) => {
+const PersonnelManagement: React.FC = () => {
   const { personnel, addPersonnel, updatePersonnel, deletePersonnel } = useAppStore();
   const [newPersonnel, setNewPersonnel] = useState<{ name: string; division: Role; affectation: string }>({ name: '', division: Role.ACCUEIL, affectation: '' });
   const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
@@ -63,10 +59,7 @@ const PersonnelManagement: React.FC<PersonnelManagementProps> = ({ setCurrentVie
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Gestion du Personnel</h1>
-        <Button onClick={() => setCurrentView('historique')}>Voir l'historique</Button>
-      </div>
+      <h1 className="text-3xl font-bold">Gestion du Personnel</h1>
       <Card>
         <h2 className="text-xl font-bold mb-4">Ajouter un nouveau personnel</h2>
         <div className="flex space-x-4">

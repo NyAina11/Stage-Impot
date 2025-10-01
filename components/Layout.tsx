@@ -24,8 +24,7 @@ const RoleViewMap: Record<Role, React.ComponentType> = {
 const Layout: React.FC = () => {
   const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead } = useAppStore();
   const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
-  const [showPersonnelManagement, setShowPersonnelManagement] = useState(false);
-  const [showPersonnelHistory, setShowPersonnelHistory] = useState(false);
+  const [view, setView] = useState('dashboard');
 
   if (!currentUser) {
     return null; 
@@ -37,6 +36,18 @@ const Layout: React.FC = () => {
     setNotificationCenterOpen(true);
     if (unreadMessageCount > 0) {
       markAllMessagesAsRead();
+    }
+  };
+
+  const renderMainContent = () => {
+    switch (view) {
+      case 'personnel':
+        return <PersonnelManagement />;
+      case 'history':
+        return <HistoriquePersonnelView />;
+      case 'dashboard':
+      default:
+        return ViewComponent && <ViewComponent />;
     }
   };
 
@@ -68,12 +79,14 @@ const Layout: React.FC = () => {
               </Button>
               {currentUser.role === Role.CHEF_DIVISION && (
                 <>
-                  <Button onClick={() => setShowPersonnelManagement(!showPersonnelManagement)}>
-                    {showPersonnelManagement ? 'Voir le tableau de bord' : 'Gérer le personnel'}
-                  </Button>
-                  <Button onClick={() => setShowPersonnelHistory(!showPersonnelHistory)}>
-                    {showPersonnelHistory ? 'Voir le tableau de bord' : 'Voir l\'historique'}
-                  </Button>
+                  {view === 'dashboard' ? (
+                    <>
+                      <Button onClick={() => setView('personnel')}>Gérer le personnel</Button>
+                      <Button onClick={() => setView('history')}>Voir l'historique</Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => setView('dashboard')}>Voir le tableau de bord</Button>
+                  )}
                 </>
               )}
             </div>
@@ -81,13 +94,7 @@ const Layout: React.FC = () => {
         </div>
       </header>
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {showPersonnelManagement ? (
-          <PersonnelManagement />
-        ) : showPersonnelHistory ? (
-          <HistoriquePersonnelView />
-        ) : (
-          ViewComponent && <ViewComponent />
-        )}
+        {renderMainContent()}
       </main>
       {isNotificationCenterOpen && <NotificationCenter onClose={() => setNotificationCenterOpen(false)} />}
     </div>

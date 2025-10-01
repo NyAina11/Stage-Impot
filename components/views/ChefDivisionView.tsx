@@ -1,8 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { DossierStatus } from '../../types';
-import PersonnelManagement from '../PersonnelManagement';
-import HistoriquePersonnelView from './HistoriquePersonnelView';
 
 function mapDossierToDossierPaiement(dossier: any): any {
     return {
@@ -74,84 +72,58 @@ const ChefDivisionView: React.FC = () => {
     const handleExport = () => {
         alert("La fonctionnalité d'exportation sera implémentée ultérieurement.");
     };
-    const [currentView, setCurrentView] = useState('dossiers');
-
-
-    const renderContent = () => {
-        switch (currentView) {
-            case 'personnel':
-                return <PersonnelManagement setCurrentView={setCurrentView} />;
-            case 'historique':
-                return <HistoriquePersonnelView />;
-            default:
-                return (
-                    <Card>
-                        <h2 className="text-xl font-bold mb-4">Consultation de tous les dossiers</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                            <input name="searchTerm" placeholder="Rechercher..." onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
-                            <select name="status" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600">
-                                <option value="">Tous les statuts</option>
-                                {Object.values(DossierStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <input name="startDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
-                            <input name="endDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
-                        </div>
-                        <div className="flex justify-end mb-4">
-                            <Button onClick={handleExport}>Exporter en PDF/Excel</Button>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                    <tr>
-                                        <th className="px-6 py-3">ID</th>
-                                        <th className="px-6 py-3">Contribuable</th>
-                                        <th className="px-6 py-3">Montant</th>
-                                        <th className="px-6 py-3">Statut</th>
-                                        <th className="px-6 py-3">Date Création</th>
-                                        <th className="px-6 py-3">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredDossiers.map(d => (
-                                        <tr key={d.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{d.id}</td>
-                                            <td className="px-6 py-4">{d.taxpayerName}</td>
-                                            <td className="px-6 py-4">{d.totalAmount ? `${d.totalAmount.toLocaleString('fr-FR')} Ar` : 'N/A'}</td>
-                                            <td className="px-6 py-4"><Badge status={d.status} /></td>
-                                            <td className="px-6 py-4">{new Date(d.createdAt).toLocaleDateString('fr-FR')}</td>
-                                            <td className="px-6 py-4 flex space-x-2">
-                                                <Button variant="secondary" onClick={() => setModalDossier(mapDossierToDossierPaiement(d))}>Détails</Button>
-                                                {d.status !== DossierStatus.PAYE && d.status !== DossierStatus.ANNULE &&
-                                                    <Button variant="danger" onClick={() => setDossierToCancel(d)}>Annuler</Button>
-                                                }
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
-                );
-        }
-    };
 
     return (
         <div className="space-y-8">
             <h1 className="text-3xl font-bold">Tableau de bord - Chef de Division</h1>
-            
-            <div className="flex space-x-4 border-b">
-                <Button variant={currentView === 'dossiers' ? 'default' : 'ghost'} onClick={() => setCurrentView('dossiers')}>
-                    Consultation des Dossiers
-                </Button>
-                <Button variant={currentView === 'personnel' ? 'default' : 'ghost'} onClick={() => setCurrentView('personnel')}>
-                    Gérer le Personnel
-                </Button>
-            </div>
+            <KPICharts dossiers={dossiers.map(mapDossierToDossierPaiement)} />
 
-            {currentView === 'dossiers' && <KPICharts dossiers={dossiers.map(mapDossierToDossierPaiement)} />}
-            
-            {renderContent()}
-
+            <Card>
+                <h2 className="text-xl font-bold mb-4">Consultation de tous les dossiers</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <input name="searchTerm" placeholder="Rechercher..." onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
+                    <select name="status" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">Tous les statuts</option>
+                        {Object.values(DossierStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <input name="startDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
+                    <input name="endDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
+                </div>
+                <div className="flex justify-end mb-4">
+                    <Button onClick={handleExport}>Exporter en PDF/Excel</Button>
+                </div>
+                 <div className="overflow-x-auto">
+                     <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr>
+                                <th className="px-6 py-3">ID</th>
+                                <th className="px-6 py-3">Contribuable</th>
+                                <th className="px-6 py-3">Montant</th>
+                                <th className="px-6 py-3">Statut</th>
+                                <th className="px-6 py-3">Date Création</th>
+                                <th className="px-6 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredDossiers.map(d => (
+                                <tr key={d.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{d.id}</td>
+                                    <td className="px-6 py-4">{d.taxpayerName}</td>
+                                    <td className="px-6 py-4">{d.totalAmount ? `${d.totalAmount.toLocaleString('fr-FR')} Ar` : 'N/A'}</td>
+                                    <td className="px-6 py-4"><Badge status={d.status} /></td>
+                                    <td className="px-6 py-4">{new Date(d.createdAt).toLocaleDateString('fr-FR')}</td>
+                                    <td className="px-6 py-4 flex space-x-2">
+                                        <Button variant="secondary" onClick={() => setModalDossier(mapDossierToDossierPaiement(d))}>Détails</Button>
+                                        {d.status !== DossierStatus.PAYE && d.status !== DossierStatus.ANNULE && 
+                                            <Button variant="danger" onClick={() => setDossierToCancel(d)}>Annuler</Button>
+                                        }
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
             {modalDossier && <DossierDetailModal dossier={modalDossier} onClose={() => setModalDossier(null)} />}
             {dossierToCancel && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
