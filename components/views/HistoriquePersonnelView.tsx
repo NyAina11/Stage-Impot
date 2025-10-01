@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useAppStore } from '../store/useAppStore';
-import { Personnel, PersonnelHistory, Role } from '../types';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
-import Badge from '../components/ui/Badge';
+import { useAppStore } from '../../store/useAppStore';
+import { Personnel, PersonnelHistory, Role } from '../../types';
+import Card from '../ui/Card';
+import Input from '../ui/Input';
+import Badge from '../ui/Badge';
 
 interface HistoriqueItem {
   personnelId: string;
