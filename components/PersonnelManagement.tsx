@@ -52,7 +52,8 @@ const PersonnelManagement: React.FC = () => {
         history: newHistory,
       };
 
-      updatePersonnel(editingPersonnel.id, updatedPersonnel);
+      const { id, ...dataToUpdate } = updatedPersonnel;
+      updatePersonnel(id, dataToUpdate);
       setEditingPersonnel(null);
     }
   };

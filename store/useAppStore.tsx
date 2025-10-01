@@ -278,7 +278,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setPersonnelLoading(true);
         try {
             const response = await createPersonnel(personnelData);
-            setPersonnel(prev => [...prev, response.data]);
+            const newPersonnel = { ...personnelData, id: response.data.id } as Personnel;
+            setPersonnel(prev => [...prev, newPersonnel]);
         } catch (error: any) {
             setPersonnelError(error.response?.data?.message || 'Échec de l\'ajout du personnel.');
             throw error;
@@ -292,7 +293,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setPersonnelLoading(true);
         try {
             const response = await apiUpdatePersonnel(personnelId, personnelData);
-            setPersonnel(prev => prev.map(p => (p.id === personnelId ? response.data : p)));
+            setPersonnel(prev => prev.map(p => (p.id === personnelId ? { ...p, ...personnelData, ...response.data } : p)));
         } catch (error: any) {
             setPersonnelError(error.response?.data?.message || 'Échec de la mise à jour du personnel.');
             throw error;
