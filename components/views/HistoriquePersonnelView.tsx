@@ -22,14 +22,20 @@ const HistoriquePersonnelView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {p.history.map((h, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4">{h.division}</td>
-                    <td className="px-6 py-4">{h.affectation}</td>
-                    <td className="px-6 py-4">{new Date(h.startDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">{h.endDate ? new Date(h.endDate).toLocaleDateString() : 'En cours'}</td>
+                {p.history && p.history.length > 0 ? (
+                  p.history.map((h, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4">{h.division}</td>
+                      <td className="px-6 py-4">{h.affectation}</td>
+                      <td className="px-6 py-4">{new Date(h.startDate).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">{h.endDate ? new Date(h.endDate).toLocaleDateString() : 'En cours'}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4">Aucun historique disponible pour ce personnel.</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

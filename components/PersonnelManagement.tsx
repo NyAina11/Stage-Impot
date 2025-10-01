@@ -31,14 +31,13 @@ const PersonnelManagement: React.FC = () => {
   const handleUpdatePersonnel = () => {
     if (editingPersonnel) {
       const now = new Date().toISOString();
-      const latestHistory = editingPersonnel.history[editingPersonnel.history.length - 1];
+      let newHistory: PersonnelHistory[] = [...(editingPersonnel.history || [])];
+      const latestHistory = newHistory.length > 0 ? newHistory[newHistory.length - 1] : null;
 
-      let newHistory: PersonnelHistory[] = [...editingPersonnel.history];
-
-      if (latestHistory.division !== editingPersonnel.division || latestHistory.affectation !== editingPersonnel.affectation) {
-        // End the current assignment
-        newHistory[newHistory.length - 1] = { ...latestHistory, endDate: now };
-        // Add the new assignment
+      if (!latestHistory || latestHistory.division !== editingPersonnel.division || latestHistory.affectation !== editingPersonnel.affectation) {
+        if (latestHistory) {
+          newHistory[newHistory.length - 1] = { ...latestHistory, endDate: now };
+        }
         newHistory.push({
           division: editingPersonnel.division,
           affectation: editingPersonnel.affectation,
@@ -46,7 +45,7 @@ const PersonnelManagement: React.FC = () => {
           endDate: null,
         });
       }
-      
+
       const updatedPersonnel = {
         ...editingPersonnel,
         history: newHistory,
