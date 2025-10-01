@@ -31,10 +31,16 @@ const PersonnelManagement: React.FC = () => {
   const handleUpdatePersonnel = () => {
     if (editingPersonnel) {
       const now = new Date().toISOString();
-      let newHistory: PersonnelHistory[] = [...(editingPersonnel.history || [])];
-      const latestHistory = newHistory.length > 0 ? newHistory[newHistory.length - 1] : null;
+      const currentHistory = editingPersonnel.history || [];
+      const latestHistory = currentHistory.length > 0 ? currentHistory[currentHistory.length - 1] : null;
 
-      if (!latestHistory || latestHistory.division !== editingPersonnel.division || latestHistory.affectation !== editingPersonnel.affectation) {
+      const isNewAssignment = !latestHistory || 
+                              latestHistory.division !== editingPersonnel.division || 
+                              latestHistory.affectation !== editingPersonnel.affectation;
+
+      let newHistory = [...currentHistory];
+
+      if (isNewAssignment) {
         if (latestHistory) {
           newHistory[newHistory.length - 1] = { ...latestHistory, endDate: now };
         }
