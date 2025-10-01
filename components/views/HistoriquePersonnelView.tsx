@@ -23,8 +23,14 @@ const HistoriquePersonnelView: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
+    console.log('HistoriquePersonnelView: fetching personnel');
     fetchPersonnel();
   }, [fetchPersonnel]);
+
+  // Logs de débogage
+  console.log('HistoriquePersonnelView - Personnel data:', personnel);
+  console.log('HistoriquePersonnelView - Personnel loading:', personnelLoading);
+  console.log('HistoriquePersonnelView - Personnel error:', personnelError);
 
   // Transformer les données du personnel en historique plat
   const historiqueItems: HistoriqueItem[] = personnel.flatMap(p => 

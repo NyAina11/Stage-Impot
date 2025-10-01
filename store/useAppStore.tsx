@@ -95,7 +95,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setMessages([]);
             setPersonnel([]);
         }
-    }, [token, currentUser, fetchDossiers]);
+    }, [token, currentUser, fetchDossiers, fetchPersonnel]);
 
     useEffect(() => {
         if (currentUser) {
@@ -264,23 +264,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    const fetchPersonnel = async () => {
+    const fetchPersonnel = useCallback(async () => {
+        console.log('fetchPersonnel called, token:', !!token);
         if (!token) return;
         setPersonnelLoading(true);
         setPersonnelError(null);
         try {
+            console.log('Fetching personnel from API...');
             const response = await getPersonnel();
+            console.log('Personnel API response:', response.data);
             const personnelWithHistory = response.data.map(p => ({
                 ...p,
                 history: p.history || [],
             }));
+            console.log('Personnel with history:', personnelWithHistory);
             setPersonnel(personnelWithHistory);
         } catch (error: any) {
+            console.error('Error fetching personnel:', error);
             setPersonnelError(error.response?.data?.message || 'Échec de la récupération du personnel.');
         } finally {
             setPersonnelLoading(false);
         }
-    };
+    }, [token]);
 
     const addPersonnel = async (personnelData: Omit<Personnel, 'id'>) => {
         if (!currentUser) throw new Error("User not authenticated");
