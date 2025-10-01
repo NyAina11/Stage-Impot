@@ -82,6 +82,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [token]);
 
+    const fetchPersonnel = useCallback(async () => {
+        if (!token) return;
+        setPersonnelLoading(true);
+        setPersonnelError(null);
+        try {
+            const response = await getPersonnel();
+            const personnelWithHistory = response.data.map(p => ({
+                ...p,
+                history: p.history || [],
+            }));
+            setPersonnel(personnelWithHistory);
+        } catch (error: any) {
+            console.error('Error fetching personnel:', error);
+            setPersonnelError(error.response?.data?.message || 'Échec de la récupération du personnel.');
+        } finally {
+            setPersonnelLoading(false);
+        }
+    }, [token]);
+
+    const fetchMessages = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
+        if (!token) return;
+        setMessagesLoading(true);
+        setMessagesError(null);
+        try {
+            const response = await apiGetMessages(params);
+            const items = Array.isArray(response.data) ? response.data : response.data.items;
+            const total = Array.isArray(response.data) ? items.length : response.data.total;
+            setMessages(prev => append ? [...prev, ...items] : items);
+            return { fetched: items.length, total };
+        } catch (error: any) {
+            console.error('Erreur lors de la récupération des messages:', error);
+            setMessagesError(error.response?.data?.message || 'Échec de la récupération des messages.');
+        } finally {
+            setMessagesLoading(false);
+        }
+    }, [token]);
+
     useEffect(() => {
         if (token && currentUser) {
             fetchDossiers();
@@ -95,7 +132,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setMessages([]);
             setPersonnel([]);
         }
-    }, [token, currentUser, fetchDossiers, fetchPersonnel]);
+    }, [token, currentUser, fetchDossiers, fetchPersonnel, fetchMessages]);
 
     useEffect(() => {
         if (currentUser) {
@@ -212,23 +249,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    const fetchMessages = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
-        if (!token) return;
-        setMessagesLoading(true);
-        setMessagesError(null);
-        try {
-            const response = await apiGetMessages(params);
-            const items = Array.isArray(response.data) ? response.data : response.data.items;
-            const total = Array.isArray(response.data) ? items.length : response.data.total;
-            setMessages(prev => append ? [...prev, ...items] : items);
-            return { fetched: items.length, total };
-        } catch (error: any) {
-            console.error('Erreur lors de la récupération des messages:', error);
-            setMessagesError(error.response?.data?.message || 'Échec de la récupération des messages.');
-        } finally {
-            setMessagesLoading(false);
-        }
-    }, [token]);
 
     const sendMessage = async (content: string) => {
         if (!currentUser) throw new Error('User not authenticated');
@@ -264,28 +284,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    const fetchPersonnel = useCallback(async () => {
-        console.log('fetchPersonnel called, token:', !!token);
-        if (!token) return;
-        setPersonnelLoading(true);
-        setPersonnelError(null);
-        try {
-            console.log('Fetching personnel from API...');
-            const response = await getPersonnel();
-            console.log('Personnel API response:', response.data);
-            const personnelWithHistory = response.data.map(p => ({
-                ...p,
-                history: p.history || [],
-            }));
-            console.log('Personnel with history:', personnelWithHistory);
-            setPersonnel(personnelWithHistory);
-        } catch (error: any) {
-            console.error('Error fetching personnel:', error);
-            setPersonnelError(error.response?.data?.message || 'Échec de la récupération du personnel.');
-        } finally {
-            setPersonnelLoading(false);
-        }
-    }, [token]);
 
     const addPersonnel = async (personnelData: Omit<Personnel, 'id'>) => {
         if (!currentUser) throw new Error("User not authenticated");
