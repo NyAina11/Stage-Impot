@@ -22,7 +22,7 @@ const RoleViewMap: Record<Role, React.ComponentType> = {
 };
 
 const Layout: React.FC = () => {
-  const { currentUser, logout, unreadMessageCount, markAllMessagesAsRead, fetchPersonnel } = useAppStore();
+  const { currentUser, logout, unreadResourceOrdersCount, markAllResourceOrdersAsRead, fetchPersonnel } = useAppStore();
   const [isNotificationCenterOpen, setNotificationCenterOpen] = useState(false);
   const [view, setView] = useState('dashboard');
 
@@ -40,8 +40,8 @@ const Layout: React.FC = () => {
 
   const handleNotificationClick = () => {
     setNotificationCenterOpen(true);
-    if (unreadMessageCount > 0) {
-      markAllMessagesAsRead();
+    if (unreadResourceOrdersCount > 0) {
+      markAllResourceOrdersAsRead();
     }
   };
 
@@ -74,7 +74,7 @@ const Layout: React.FC = () => {
               <div className="relative">
                 <Button variant="ghost" onClick={handleNotificationClick} className="relative">
                   <BellIcon className="w-6 h-6" />
-                  {unreadMessageCount > 0 && (
+                  {unreadResourceOrdersCount > 0 && (
                     <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500" />
                   )}
                 </Button>

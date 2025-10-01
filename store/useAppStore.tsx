@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Dossier, User, DossierStatus, TaxDetail, PaymentMethod, Message, Personnel } from '../types';
-import { getDossiers, createDossier as apiCreateDossier, updateDossier as apiUpdateDossier, deleteDossier as apiDeleteDossier, sendMessage as apiSendMessage, getMessages as apiGetMessages, confirmMessage as apiConfirmMessage, getPersonnel, createPersonnel, updatePersonnel as apiUpdatePersonnel, deletePersonnel as apiDeletePersonnel } from '../src/services/api';
+import { Dossier, User, DossierStatus, TaxDetail, PaymentMethod, ResourceOrder, Personnel, ResourceType, ResourceOrderStatus } from '../types';
+import { getDossiers, createDossier as apiCreateDossier, updateDossier as apiUpdateDossier, deleteDossier as apiDeleteDossier, createResourceOrder as apiCreateResourceOrder, getResourceOrders as apiGetResourceOrders, updateResourceOrder as apiUpdateResourceOrder, getPersonnel, createPersonnel, updatePersonnel as apiUpdatePersonnel, deletePersonnel as apiDeletePersonnel } from '../src/services/api';
 
 interface AppState {
   dossiers: Dossier[];
@@ -8,10 +8,10 @@ interface AppState {
   token: string | null;
   dossiersLoading: boolean;
   dossiersError: string | null;
-  messages: Message[];
-  messagesLoading: boolean;
-  messagesError: string | null;
-  unreadMessageCount: number;
+  resourceOrders: ResourceOrder[];
+  resourceOrdersLoading: boolean;
+  resourceOrdersError: string | null;
+  unreadResourceOrdersCount: number;
   personnel: Personnel[];
   personnelLoading: boolean;
   personnelError: string | null;
@@ -24,10 +24,11 @@ interface AppState {
   confirmPayment: (dossierId: string, paymentDetails: { method: PaymentMethod; bankName?: string; chequeNumber?: string; bankTransferRef?: string }) => Promise<void>;
   cancelDossier: (dossierId: string, reason: string) => Promise<void>;
   deleteDossier: (dossierId: string) => Promise<void>;
-  fetchMessages: (params?: { limit?: number; offset?: number }, append?: boolean) => Promise<{ fetched: number; total: number } | void>;
-  sendMessage: (content: string) => Promise<void>;
-  confirmMessage: (id: string) => Promise<void>;
-  markAllMessagesAsRead: () => Promise<void>;
+  fetchResourceOrders: (params?: { limit?: number; offset?: number }, append?: boolean) => Promise<{ fetched: number; total: number } | void>;
+  createResourceOrder: (orderData: { resourceType: ResourceType; quantity: number; unit: string; targetDivision: Role; description?: string; notes?: string }) => Promise<void>;
+  deliverResourceOrder: (id: string, notes?: string) => Promise<void>;
+  confirmResourceOrderReceipt: (id: string, notes?: string) => Promise<void>;
+  markAllResourceOrdersAsRead: () => Promise<void>;
   fetchPersonnel: () => Promise<void>;
   addPersonnel: (personnelData: Omit<Personnel, 'id'>) => Promise<void>;
   updatePersonnel: (personnelId: string, personnelData: Omit<Personnel, 'id'>) => Promise<void>;
@@ -50,19 +51,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
     const [dossiersLoading, setDossiersLoading] = useState<boolean>(false);
     const [dossiersError, setDossiersError] = useState<string | null>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [messagesLoading, setMessagesLoading] = useState<boolean>(false);
-    const [messagesError, setMessagesError] = useState<string | null>(null);
-    const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
+    const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
+    const [resourceOrdersLoading, setResourceOrdersLoading] = useState<boolean>(false);
+    const [resourceOrdersError, setResourceOrdersError] = useState<string | null>(null);
+    const [unreadResourceOrdersCount, setUnreadResourceOrdersCount] = useState<number>(0);
     const [personnel, setPersonnel] = useState<Personnel[]>([]);
     const [personnelLoading, setPersonnelLoading] = useState<boolean>(false);
     const [personnelError, setPersonnelError] = useState<string | null>(null);
 
 
     useEffect(() => {
-        const unconfirmedCount = messages.filter(m => !m.confirmed).length;
-        setUnreadMessageCount(unconfirmedCount);
-    }, [messages]);
+        const undeliveredCount = resourceOrders.filter(order => 
+            order.status === ResourceOrderStatus.EN_ATTENTE || 
+            order.status === ResourceOrderStatus.LIVRE
+        ).length;
+        setUnreadResourceOrdersCount(undeliveredCount);
+    }, [resourceOrders]);
 
     const fetchDossiers = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
         if (!token) return;
@@ -101,38 +105,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [token]);
 
-    const fetchMessages = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
+    const fetchResourceOrders = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
         if (!token) return;
-        setMessagesLoading(true);
-        setMessagesError(null);
+        setResourceOrdersLoading(true);
+        setResourceOrdersError(null);
         try {
-            const response = await apiGetMessages(params);
+            const response = await apiGetResourceOrders(params);
             const items = Array.isArray(response.data) ? response.data : response.data.items;
             const total = Array.isArray(response.data) ? items.length : response.data.total;
-            setMessages(prev => append ? [...prev, ...items] : items);
+            setResourceOrders(prev => append ? [...prev, ...items] : items);
             return { fetched: items.length, total };
         } catch (error: any) {
-            console.error('Erreur lors de la récupération des messages:', error);
-            setMessagesError(error.response?.data?.message || 'Échec de la récupération des messages.');
+            console.error('Erreur lors de la récupération des commandes de ressources:', error);
+            setResourceOrdersError(error.response?.data?.message || 'Échec de la récupération des commandes de ressources.');
         } finally {
-            setMessagesLoading(false);
+            setResourceOrdersLoading(false);
         }
     }, [token]);
 
     useEffect(() => {
         if (token && currentUser) {
             fetchDossiers();
-            fetchMessages();
+            fetchResourceOrders();
             // Charger le personnel pour le Chef de Division
             if (currentUser.role === 'Chef de Division') {
                 fetchPersonnel();
             }
         } else {
             setDossiers([]);
-            setMessages([]);
+            setResourceOrders([]);
             setPersonnel([]);
         }
-    }, [token, currentUser, fetchDossiers, fetchPersonnel, fetchMessages]);
+    }, [token, currentUser, fetchDossiers, fetchPersonnel, fetchResourceOrders]);
 
     useEffect(() => {
         if (currentUser) {
@@ -250,36 +254,61 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
 
-    const sendMessage = async (content: string) => {
+    const createResourceOrder = async (orderData: { resourceType: ResourceType; quantity: number; unit: string; targetDivision: Role; description?: string; notes?: string }) => {
         if (!currentUser) throw new Error('User not authenticated');
         try {
-            const response = await apiSendMessage(content);
-            // Response is an array of created messages (one per division)
-            setMessages(prev => [...response.data, ...prev]);
+            const response = await apiCreateResourceOrder(orderData);
+            setResourceOrders(prev => [response.data, ...prev]);
         } catch (error: any) {
-            setMessagesError(error.response?.data?.message || 'Échec de l\'envoi du message.');
+            setResourceOrdersError(error.response?.data?.message || 'Échec de la création de la commande.');
             throw error;
         }
     };
 
-    const confirmMessage = async (id: string) => {
+    const deliverResourceOrder = async (id: string, notes?: string) => {
+        if (!currentUser) throw new Error('User not authenticated');
         try {
-            const response = await apiConfirmMessage(id);
-            setMessages(prev => prev.map(m => (m.id === id ? response.data : m)));
+            const response = await apiUpdateResourceOrder(id, { 
+                status: ResourceOrderStatus.LIVRE, 
+                deliveredBy: currentUser.id,
+                deliveredAt: new Date().toISOString(),
+                notes 
+            });
+            setResourceOrders(prev => prev.map(order => (order.id === id ? response.data : order)));
         } catch (error: any) {
-            setMessagesError(error.response?.data?.message || 'Échec de la confirmation.');
+            setResourceOrdersError(error.response?.data?.message || 'Échec de la livraison.');
             throw error;
         }
     };
 
-    const markAllMessagesAsRead = async () => {
-        const unconfirmedMessages = messages.filter(m => !m.confirmed);
-        for (const message of unconfirmedMessages) {
+    const confirmResourceOrderReceipt = async (id: string, notes?: string) => {
+        if (!currentUser) throw new Error('User not authenticated');
+        try {
+            const response = await apiUpdateResourceOrder(id, { 
+                status: ResourceOrderStatus.RECU, 
+                receivedBy: currentUser.id,
+                receivedAt: new Date().toISOString(),
+                notes 
+            });
+            setResourceOrders(prev => prev.map(order => (order.id === id ? response.data : order)));
+        } catch (error: any) {
+            setResourceOrdersError(error.response?.data?.message || 'Échec de la confirmation de réception.');
+            throw error;
+        }
+    };
+
+    const markAllResourceOrdersAsRead = async () => {
+        const unreceivedOrders = resourceOrders.filter(order => 
+            order.status !== ResourceOrderStatus.RECU && 
+            (order.targetDivision === currentUser?.role || currentUser?.role === 'Accueil')
+        );
+        for (const order of unreceivedOrders) {
             try {
-                await confirmMessage(message.id);
+                if (order.status === ResourceOrderStatus.LIVRE && currentUser?.role !== 'Accueil') {
+                    await confirmResourceOrderReceipt(order.id);
+                }
             } catch (error) {
-                console.error(`Failed to confirm message ${message.id}`, error);
-                // Optionally, handle individual confirmation errors
+                console.error(`Failed to confirm resource order ${order.id}`, error);
             }
         }
     };
@@ -336,10 +365,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         token,
         dossiersLoading,
         dossiersError,
-        messages,
-        messagesLoading,
-        messagesError,
-        unreadMessageCount,
+        resourceOrders,
+        resourceOrdersLoading,
+        resourceOrdersError,
+        unreadResourceOrdersCount,
         personnel,
         personnelLoading,
         personnelError,
@@ -352,10 +381,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         confirmPayment,
         cancelDossier,
         deleteDossier,
-        fetchMessages,
-        sendMessage,
-        confirmMessage,
-        markAllMessagesAsRead,
+        fetchResourceOrders,
+        createResourceOrder,
+        deliverResourceOrder,
+        confirmResourceOrderReceipt,
+        markAllResourceOrdersAsRead,
         fetchPersonnel,
         addPersonnel,
         updatePersonnel,

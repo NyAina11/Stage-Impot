@@ -67,7 +67,7 @@ const initializeDatabase = async () => {
       ],
       dossiers: [],
       auditLogs: [],
-      messages: [],
+      resourceOrders: [],
       personnel: []
     };
     
@@ -75,8 +75,8 @@ const initializeDatabase = async () => {
     console.log("Database seeded successfully with default users.");
   }
   // Ensure new collections exist for existing DBs
-  if (db && !Array.isArray(db.messages)) {
-    db.messages = [];
+  if (db && !Array.isArray(db.resourceOrders)) {
+    db.resourceOrders = [];
     await writeDB(db);
   }
   if (db && !Array.isArray(db.personnel)) {
@@ -281,84 +281,101 @@ app.delete('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]),
     }
 });
 
-// --- Messages Routes ---
-// Create a message (Accueil can notify divisions). Allow any authenticated user to send, but typical use is Accueil.
-app.post('/api/messages', authMiddleware, async (req, res) => {
-  const { content } = req.body;
+// --- Resource Orders Routes ---
+// Create a resource order (typically Accueil creates orders to distribute to divisions)
+app.post('/api/resource-orders', authMiddleware, roleAuth([ROLES.ACCUEIL]), async (req, res) => {
+  const { resourceType, quantity, unit, targetDivision, description, notes } = req.body;
   const { userId, role } = req.user;
-  if (!content) {
-    return res.status(400).json({ message: 'Contenu requis.' });
+  if (!resourceType || !quantity || !unit || !targetDivision) {
+    return res.status(400).json({ message: 'Type de ressource, quantité, unité et division cible sont requis.' });
   }
   try {
     const db = await readDB();
-    const targets = [ROLES.GESTION, ROLES.CHEF_DIVISION, ROLES.CAISSE];
     const now = Date.now();
     const createdAt = new Date().toISOString();
-    const createdMessages = targets.map((toRole, idx) => ({
-      id: `msg_${now}_${idx}`,
-      fromUserId: userId,
-      fromRole: role,
-      toRole,
-      content,
+    const newResourceOrder = {
+      id: `res_${now}`,
+      resourceType,
+      quantity,
+      unit,
+      description: description || '',
+      requestedBy: userId,
+      requestedByRole: role,
+      targetDivision,
       createdAt,
-      confirmed: false,
-      confirmedBy: null,
-      confirmedAt: null
-    }));
-    db.messages.push(...createdMessages);
-    db.auditLogs.push({ user: userId, role, action: `Broadcast message created to divisions (${targets.join(', ')})`, timestamp: createdAt });
+      status: 'En attente',
+      notes: notes || ''
+    };
+    db.resourceOrders.push(newResourceOrder);
+    db.auditLogs.push({ user: userId, role, action: `Resource order ${newResourceOrder.id} created for ${targetDivision}`, timestamp: createdAt });
     await writeDB(db);
-    res.status(201).json(createdMessages);
+    res.status(201).json(newResourceOrder);
   } catch (error) {
-    console.error('Error creating message:', error);
-    res.status(500).json({ message: 'Erreur du serveur lors de la création du message.' });
+    console.error('Error creating resource order:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la création de la commande de ressources.' });
   }
 });
 
-// Get messages. If Accueil (or any non-target role), return messages sent by that user. If role is Gestion/Chef, return messages addressed to that role.
-app.get('/api/messages', authMiddleware, async (req, res) => {
+// Get resource orders. If Accueil, return all orders. If other divisions, return orders for that division.
+app.get('/api/resource-orders', authMiddleware, async (req, res) => {
   try {
     const { userId, role } = req.user;
     const db = await readDB();
     const { limit, offset } = req.query;
-    let messages = [];
-    if (role === ROLES.GESTION || role === ROLES.CHEF_DIVISION || role === ROLES.CAISSE) {
-      messages = db.messages.filter(m => m.toRole === role);
+    let resourceOrders = [];
+    if (role === ROLES.ACCUEIL) {
+      // Accueil can see all orders they created
+      resourceOrders = db.resourceOrders.filter(order => order.requestedBy === userId);
     } else {
-      messages = db.messages.filter(m => m.fromUserId === userId);
+      // Other divisions see orders targeted to them
+      resourceOrders = db.resourceOrders.filter(order => order.targetDivision === role);
     }
-    const sorted = messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const sorted = resourceOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const lim = Number(limit) || sorted.length;
     const off = Number(offset) || 0;
     const paged = sorted.slice(off, off + lim);
     res.json({ items: paged, total: sorted.length });
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des messages.' });
+    console.error('Error fetching resource orders:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des commandes de ressources.' });
   }
 });
 
-// Confirm a message (only target division roles)
-app.put('/api/messages/:id/confirm', authMiddleware, roleAuth([ROLES.GESTION, ROLES.CHEF_DIVISION, ROLES.CAISSE]), async (req, res) => {
+// Update resource order status (deliver or confirm receipt)
+app.put('/api/resource-orders/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { userId, role } = req.user;
+  const updateData = req.body;
   try {
     const db = await readDB();
-    const index = db.messages.findIndex(m => m.id === id);
+    const index = db.resourceOrders.findIndex(order => order.id === id);
     if (index === -1) {
-      return res.status(404).json({ message: 'Message non trouvé.' });
+      return res.status(404).json({ message: 'Commande de ressources non trouvée.' });
     }
-    const msg = db.messages[index];
-    if (msg.toRole !== role) {
-      return res.status(403).json({ message: 'Vous ne pouvez confirmer que les messages adressés à votre rôle.' });
+    const order = db.resourceOrders[index];
+    
+    // Check permissions
+    if (role === ROLES.ACCUEIL) {
+      // Accueil can update orders they created (deliver them)
+      if (order.requestedBy !== userId) {
+        return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres commandes.' });
+      }
+    } else {
+      // Other divisions can only confirm receipt of orders targeted to them
+      if (order.targetDivision !== role) {
+        return res.status(403).json({ message: 'Vous ne pouvez confirmer que les commandes adressées à votre division.' });
+      }
     }
-    db.messages[index] = { ...msg, confirmed: true, confirmedBy: userId, confirmedAt: new Date().toISOString() };
-    db.auditLogs.push({ user: userId, role, action: `Message ${id} confirmed`, timestamp: new Date().toISOString() });
+    
+    db.resourceOrders[index] = { ...order, ...updateData };
+    const action = updateData.status === 'Livré' ? 'delivered' : 
+                   updateData.status === 'Reçu' ? 'confirmed receipt of' : 'updated';
+    db.auditLogs.push({ user: userId, role, action: `Resource order ${id} ${action}`, timestamp: new Date().toISOString() });
     await writeDB(db);
-    res.json(db.messages[index]);
+    res.json(db.resourceOrders[index]);
   } catch (error) {
-    console.error('Error confirming message:', error);
-    res.status(500).json({ message: 'Erreur du serveur lors de la confirmation du message.' });
+    console.error('Error updating resource order:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour de la commande de ressources.' });
   }
 });
 

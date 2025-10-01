@@ -61,16 +61,40 @@ export interface Dossier {
   reason?: string; 
 }
 
-export interface Message {
+export enum ResourceType {
+  PAPIER = 'Papier',
+  ENCRE_NOIR = 'Encre noir',
+  ENCRE_COULEUR = 'Encre couleur',
+  TONER = 'Toner',
+  CARTOUCHE = 'Cartouche',
+  STYLOS = 'Stylos',
+  AGRAFEUSES = 'Agrafeuses',
+  CLASSEURS = 'Classeurs',
+  AUTRES = 'Autres'
+}
+
+export enum ResourceOrderStatus {
+  EN_ATTENTE = 'En attente',
+  LIVRE = 'Livré',
+  RECU = 'Reçu'
+}
+
+export interface ResourceOrder {
   id: string;
-  fromUserId: string;
-  fromRole: Role;
-  toRole: Role;
-  content: string;
+  resourceType: ResourceType;
+  quantity: number;
+  unit: string; // 'rames', 'pièces', 'boîtes', etc.
+  description?: string;
+  requestedBy: string; // user ID
+  requestedByRole: Role;
+  targetDivision: Role; // division qui va recevoir
   createdAt: string;
-  confirmed: boolean;
-  confirmedBy: string | null;
-  confirmedAt: string | null;
+  status: ResourceOrderStatus;
+  deliveredBy?: string; // user ID qui a livré
+  deliveredAt?: string;
+  receivedBy?: string; // user ID qui a confirmé réception
+  receivedAt?: string;
+  notes?: string;
 }
 
 export interface Personnel {

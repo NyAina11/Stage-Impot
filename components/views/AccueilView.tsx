@@ -22,10 +22,10 @@ import Card from '../ui/Card';
 import Badge from '../ui/Badge';
 import DossierDetailModal from '../DossierDetailModal';
 import FilePlusIcon from '../icons/FilePlusIcon';
-import MessageCenterModal from '../MessageCenterModal';
+import ResourceManagementModal from '../ResourceManagementModal';
 
 const AccueilView: React.FC = () => {
-    const { dossiers, createDossier, fetchDossiers, dossiersLoading, dossiersError, currentUser, sendMessage, messages, messagesLoading, fetchMessages } = useAppStore();
+    const { dossiers, createDossier, fetchDossiers, dossiersLoading, dossiersError, currentUser, resourceOrders, resourceOrdersLoading, fetchResourceOrders } = useAppStore();
     const [taxpayerName, setTaxpayerName] = useState('');
     
     const currentYear = new Date().getFullYear();
@@ -42,15 +42,15 @@ const AccueilView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
     const [modalDossier, setModalDossier] = useState<any | null>(null);
-    const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+    const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
     
     const months = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre" ];
     const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
     useEffect(() => {
         fetchDossiers();
-        fetchMessages();
-    }, [fetchDossiers]);
+        fetchResourceOrders();
+    }, [fetchDossiers, fetchResourceOrders]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -126,13 +126,13 @@ const AccueilView: React.FC = () => {
     return (
         <div className="space-y-8">
             <div className="flex justify-end">
-                <Button onClick={() => setIsMessageModalOpen(true)}>
-                    Ouvrir la messagerie
+                <Button onClick={() => setIsResourceModalOpen(true)}>
+                    Gestion des Ressources
                 </Button>
             </div>
 
-            {isMessageModalOpen && (
-                <MessageCenterModal onClose={() => setIsMessageModalOpen(false)} />
+            {isResourceModalOpen && (
+                <ResourceManagementModal onClose={() => setIsResourceModalOpen(false)} />
             )}
             <Card>
                 <form onSubmit={handleSubmit} className="space-y-4">

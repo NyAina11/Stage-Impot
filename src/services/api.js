@@ -36,10 +36,10 @@ export const getUsers = () => apiClient.get('/users');
 // --- Audit Log Service ---
 export const getAuditLogs = () => apiClient.get('/auditlogs');
 
-// --- Messages Service ---
-export const sendMessage = (content) => apiClient.post('/messages', { content });
-export const getMessages = (params) => apiClient.get('/messages', { params });
-export const confirmMessage = (id) => apiClient.put(`/messages/${id}/confirm`);
+// --- Resource Orders Service ---
+export const createResourceOrder = (orderData) => apiClient.post('/resource-orders', orderData);
+export const getResourceOrders = (params) => apiClient.get('/resource-orders', { params });
+export const updateResourceOrder = (id, updateData) => apiClient.put(`/resource-orders/${id}`, updateData);
 
 // --- Personnel Service ---
 export const getPersonnel = () => apiClient.get('/personnel');
