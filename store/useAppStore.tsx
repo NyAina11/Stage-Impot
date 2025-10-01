@@ -280,8 +280,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addPersonnel = async (personnelData: Omit<Personnel, 'id'>) => {
         if (!currentUser) throw new Error("User not authenticated");
         setPersonnelLoading(true);
+        console.log("--- Création du personnel (envoi) ---", personnelData);
         try {
             const response = await createPersonnel(personnelData);
+            console.log("--- Création du personnel (réponse) ---", response.data);
             const newPersonnel = { ...personnelData, id: response.data.id } as Personnel;
             setPersonnel(prev => [...prev, newPersonnel]);
         } catch (error: any) {
@@ -295,8 +297,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updatePersonnel = async (personnelId: string, personnelData: Omit<Personnel, 'id'>) => {
         if (!currentUser) throw new Error("User not authenticated");
         setPersonnelLoading(true);
+        console.log(`--- Mise à jour du personnel ${personnelId} (envoi) ---`, personnelData);
         try {
             const response = await apiUpdatePersonnel(personnelId, personnelData);
+            console.log(`--- Mise à jour du personnel ${personnelId} (réponse) ---`, response.data);
             setPersonnel(prev => prev.map(p => (p.id === personnelId ? { ...p, ...personnelData, ...response.data } : p)));
         } catch (error: any) {
             setPersonnelError(error.response?.data?.message || 'Échec de la mise à jour du personnel.');
