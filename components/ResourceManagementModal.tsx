@@ -90,7 +90,7 @@ const ResourceManagementModal: React.FC<ResourceManagementModalProps> = ({ onClo
                 <div className="space-y-6">
                     {canCreateOrders && (
                         <div>
-                            <h3 className="text-lg font-semibold mb-2">Nouvelle Commande de Ressources</h3>
+                            <h3 className="text-lg font-semibold mb-2">Distribuer des Ressources</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Type de ressource</label>
@@ -156,7 +156,7 @@ const ResourceManagementModal: React.FC<ResourceManagementModalProps> = ({ onClo
                                 </div>
                                 <div className="md:col-span-2 text-right">
                                     <Button onClick={handleCreateOrder} disabled={resourceOrdersLoading}>
-                                        {resourceOrdersLoading ? 'Création...' : 'Créer la Commande'}
+                                        {resourceOrdersLoading ? 'Distribution...' : 'Distribuer vers la Division'}
                                     </Button>
                                 </div>
                             </div>
@@ -165,12 +165,12 @@ const ResourceManagementModal: React.FC<ResourceManagementModalProps> = ({ onClo
 
                     <div>
                         <h3 className="text-lg font-semibold mb-2">
-                            {canCreateOrders ? 'Mes Commandes Créées' : 'Commandes Reçues'}
+                            {canCreateOrders ? 'Ressources Distribuées' : 'Ressources Reçues'}
                         </h3>
                         <div className="overflow-x-auto">
                             {resourceOrders.length === 0 ? (
                                 <p className="text-center text-gray-500 dark:text-gray-400">
-                                    {canCreateOrders ? 'Aucune commande créée.' : 'Aucune commande reçue.'}
+                                    {canCreateOrders ? 'Aucune ressource distribuée.' : 'Aucune ressource reçue.'}
                                 </p>
                             ) : (
                                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">

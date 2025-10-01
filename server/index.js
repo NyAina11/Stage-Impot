@@ -282,7 +282,11 @@ app.delete('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]),
 });
 
 // --- Resource Orders Routes ---
-// Create a resource order (typically Accueil creates orders to distribute to divisions)
+// FLUX DES RESSOURCES:
+// 1. Accueil reçoit les ressources physiques et crée des "commandes" pour les distribuer vers les divisions
+// 2. Accueil livre les ressources (statut: "Livré")
+// 3. Les divisions confirment la réception (statut: "Reçu")
+// Create a resource order (Accueil distribue des ressources vers les divisions)
 app.post('/api/resource-orders', authMiddleware, roleAuth([ROLES.ACCUEIL]), async (req, res) => {
   const { resourceType, quantity, unit, targetDivision, description, notes } = req.body;
   const { userId, role } = req.user;
