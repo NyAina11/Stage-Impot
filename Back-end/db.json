@@ -94,6 +94,12 @@
       "role": "Caisse",
       "action": "Message msg_1758615348412_2 confirmed",
       "timestamp": "2025-09-23T08:19:12.357Z"
+    },
+    {
+      "user": "user_accueil",
+      "role": "Accueil",
+      "action": "Resource order res_1759387461201 created for Gestion",
+      "timestamp": "2025-10-02T06:44:21.201Z"
     }
   ],
   "messages": [
@@ -153,5 +159,19 @@
       ]
     }
   ],
-  "resourceOrders": []
+  "resourceOrders": [
+    {
+      "id": "res_1759387461201",
+      "resourceType": "Papier",
+      "quantity": 1,
+      "unit": "rames",
+      "description": "",
+      "requestedBy": "user_accueil",
+      "requestedByRole": "Accueil",
+      "targetDivision": "Gestion",
+      "createdAt": "2025-10-02T06:44:21.201Z",
+      "status": "En attente",
+      "notes": ""
+    }
+  ]
 }
