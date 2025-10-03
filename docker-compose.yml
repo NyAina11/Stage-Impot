@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./Back-end
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./Back-end:/usr/src/app
+      - /usr/src/app/node_modules
+
+  frontend:
+    build:
+      context: ./Front-end
+    ports:
+      - "8080:80"
+    volumes:
+      - ./Front-end:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - backend
