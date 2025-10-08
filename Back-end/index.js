@@ -1,14 +1,28 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const fs = require('fs').promises;
-const path = require('path');
+const { Pool } = require('pg');
 
 const app = express();
-const port = 3001;
-const dbPath = path.join(__dirname, 'db.json');
-const JWT_SECRET = 'votre_super_secret_jwt_a_remplacer_en_production';
+const port = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'votre_super_secret_jwt_a_remplacer_en_production';
+
+// Configuration de la connexion PostgreSQL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Test de connexion
+pool.on('connect', () => {
+  console.log('✅ Connecté à PostgreSQL');
+});
+
+pool.on('error', (err) => {
+  console.error('❌ Erreur PostgreSQL:', err);
+});
 
 // ROLES
 const ROLES = {
@@ -18,7 +32,7 @@ const ROLES = {
   CHEF_DIVISION: 'Chef de Division',
 };
 
-// DOSSIER STATUSES (Mirroring frontend types.ts)
+// DOSSIER STATUSES
 const DossierStatus = {
   EN_ATTENTE_DE_CALCUL: 'En attente de calcul',
   EN_ATTENTE_DE_PAIEMENT: 'En attente de paiement',
@@ -26,70 +40,44 @@ const DossierStatus = {
   ANNULE: 'Annulé',
 };
 
-// --- Database Helper Functions ---
-const readDB = async () => {
-  try {
-    const data = await fs.readFile(dbPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return null; // Return null if DB doesn't exist
-    }
-    console.error("Error reading database:", error);
-    throw error;
-  }
-};
-
-const writeDB = async (data) => {
-  try {
-    await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf8');
-  } catch (error) {
-    console.error("Error writing to database:", error);
-    throw error;
-  }
-};
-
-// --- Seeding Function ---
-const initializeDatabase = async () => {
-  let db = await readDB();
-
-  if (db === null || db.users.length === 0) { // Check if db is null or empty
-    console.log("Database not found or empty. Creating and seeding default users.");
-    
-    const hashedPassword = await bcrypt.hash('password123', 10);
-
-    db = {
-      users: [
-        { id: "user_accueil", username: "accueil_user", password: hashedPassword, role: ROLES.ACCUEIL },
-        { id: "user_gestion", username: "gestion_user", password: hashedPassword, role: ROLES.GESTION },
-        { id: "user_caisse", username: "caisse_user", password: hashedPassword, role: ROLES.CAISSE },
-        { id: "user_chef_division", username: "chef_division_user", password: hashedPassword, role: ROLES.CHEF_DIVISION },
-      ],
-      dossiers: [],
-      auditLogs: [],
-      resourceOrders: [],
-      personnel: []
-    };
-    
-    await writeDB(db);
-    console.log("Database seeded successfully with default users.");
-  }
-  // Ensure new collections exist for existing DBs
-  if (db && !Array.isArray(db.resourceOrders)) {
-    db.resourceOrders = [];
-    await writeDB(db);
-  }
-  if (db && !Array.isArray(db.personnel)) {
-    db.personnel = [];
-    await writeDB(db);
-  }
-};
-
-
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+// --- Initialisation de la base de données ---
+const initializeDatabase = async () => {
+  const client = await pool.connect();
+  try {
+    // Vérifier si des utilisateurs existent
+    const result = await client.query('SELECT COUNT(*) FROM users');
+    const userCount = parseInt(result.rows[0].count);
+
+    if (userCount === 0) {
+      console.log('📝 Création des utilisateurs par défaut...');
+      const hashedPassword = await bcrypt.hash('password123', 10);
+
+      const users = [
+        { id: 'user_accueil', username: 'accueil_user', password: hashedPassword, role: ROLES.ACCUEIL },
+        { id: 'user_gestion', username: 'gestion_user', password: hashedPassword, role: ROLES.GESTION },
+        { id: 'user_caisse', username: 'caisse_user', password: hashedPassword, role: ROLES.CAISSE },
+        { id: 'user_chef_division', username: 'chef_division_user', password: hashedPassword, role: ROLES.CHEF_DIVISION },
+      ];
+
+      for (const user of users) {
+        await client.query(
+          'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)',
+          [user.id, user.username, user.password, user.role]
+        );
+      }
+
+      console.log('✅ Utilisateurs par défaut créés');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'initialisation:', error);
+  } finally {
+    client.release();
+  }
+};
 
 // --- Auth Middleware ---
 const authMiddleware = (req, res, next) => {
@@ -124,17 +112,19 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ message: 'Veuillez fournir un nom d\'utilisateur, un mot de passe et un rôle.' });
   }
   try {
-    const db = await readDB();
-    if (db.users.find(u => u.username === username)) {
+    const existingUser = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (existingUser.rows.length > 0) {
       return res.status(409).json({ message: 'Ce nom d\'utilisateur existe déjà.' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { id: `user_${Date.now()}`, username, password: hashedPassword, role };
-    db.users.push(newUser);
-    await writeDB(db);
-    res.status(201).json({ message: 'Utilisateur créé avec succès.', userId: newUser.id });
+    const userId = `user_${Date.now()}`;
+    await pool.query(
+      'INSERT INTO users (id, username, password, role) VALUES ($1, $2, $3, $4)',
+      [userId, username, hashedPassword, role]
+    );
+    res.status(201).json({ message: 'Utilisateur créé avec succès.', userId });
   } catch (error) {
-    console.error("Server error during registration:", error);
+    console.error('Erreur lors de l\'enregistrement:', error);
     res.status(500).json({ message: 'Erreur du serveur lors de l\'enregistrement.' });
   }
 });
@@ -146,8 +136,8 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ message: 'Veuillez fournir un nom d\'utilisateur et un mot de passe.' });
   }
   try {
-    const db = await readDB();
-    const user = db.users.find(u => u.username === username);
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = result.rows[0];
     if (!user) {
       console.log(`[LOGIN FAILED] User not found: '${username}'`);
       return res.status(401).json({ message: 'Identifiants invalides.' });
@@ -157,364 +147,417 @@ app.post('/api/auth/login', async (req, res) => {
       console.log(`[LOGIN FAILED] Invalid password for user: '${username}'`);
       return res.status(401).json({ message: 'Identifiants invalides.' });
     }
-    const token = jwt.sign({ userId: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
     console.log(`[LOGIN SUCCESS] User logged in: '${username}'`);
     res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
   } catch (error) {
-    console.error("Server error during login:", error);
+    console.error('Erreur lors de la connexion:', error);
     res.status(500).json({ message: 'Erreur du serveur lors de la connexion.' });
   }
 });
 
-// --- New Protected Routes ---
+// --- Users Routes ---
 app.get('/api/users', authMiddleware, async (req, res) => {
-    try {
-        const db = await readDB();
-        // Return users without their passwords
-        const users = db.users.map(({ password, ...user }) => user);
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({ message: 'Erreur du serveur lors de la récupération des utilisateurs.' });
-    }
+  try {
+    const result = await pool.query('SELECT id, username, role, created_at FROM users');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des utilisateurs:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des utilisateurs.' });
+  }
 });
 
+// --- Audit Logs Routes ---
 app.get('/api/auditlogs', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
-    try {
-        const db = await readDB(); 
-        res.json(db.auditLogs);
-    } catch (error) {
-        res.status(500).json({ message: 'Erreur du serveur lors de la récupération des logs d\'audit.' });
-    }
+  try {
+    const result = await pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des logs:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des logs d\'audit.' });
+  }
 });
 
-// --- Dossiers Routes (Protected with RBAC) ---
+// Fonction helper pour ajouter un audit log
+const addAuditLog = async (userId, role, action) => {
+  try {
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, role, action) VALUES ($1, $2, $3)',
+      [userId, role, action]
+    );
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du log d\'audit:', error);
+  }
+};
+
+// --- Dossiers Routes ---
 app.get('/api/dossiers', authMiddleware, async (req, res) => {
-    try {
-        const db = await readDB();
-        const { limit, offset } = req.query;
-        const sorted = [...db.dossiers].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        const lim = Number(limit) || sorted.length;
-        const off = Number(offset) || 0;
-        const paged = sorted.slice(off, off + lim);
-        res.json({ items: paged, total: sorted.length });
-    }  catch (error) {
-        res.status(500).json({ message: 'Erreur du serveur lors de la récupération des dossiers.' });
-    }
+  try {
+    const { limit, offset } = req.query;
+    const lim = parseInt(limit) || 1000;
+    const off = parseInt(offset) || 0;
+
+    const result = await pool.query(
+      'SELECT * FROM dossiers ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      [lim, off]
+    );
+    const countResult = await pool.query('SELECT COUNT(*) FROM dossiers');
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({ items: result.rows, total });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des dossiers:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération des dossiers.' });
+  }
 });
 
 app.post('/api/dossiers', authMiddleware, roleAuth([ROLES.ACCUEIL, ROLES.GESTION]), async (req, res) => {
-    const { taxpayerName, taxPeriod, status, taxDetails } = req.body;
-    const { userId, role } = req.user;
-    if (!taxpayerName || !taxPeriod || !status || !taxDetails) {
-        return res.status(400).json({ message: 'Le nom du contribuable, la période fiscale, le statut et les détails fiscaux du dossier sont requis.' });
-    }
-    try {
-        const db = await readDB();
-        const newDossier = {
-            id: `dos_${Date.now()}`,
-            taxpayerName,
-            taxPeriod,
-            status,
-            taxDetails: taxDetails || [],
-            totalAmount: taxDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0),
-            createdBy: userId,
-            createdAt: new Date().toISOString()
-        };
-        db.dossiers.push(newDossier);
-        db.auditLogs.push({ user: userId, role, action: `Dossier ${newDossier.id} created`, timestamp: new Date().toISOString() });
-        await writeDB(db);
-        res.status(201).json(newDossier);
-    } catch (error) {
-        console.error("Error creating dossier:", error);
-        res.status(500).json({ message: 'Erreur du serveur lors de la création du dossier.' });
-    }
+  const { taxpayerName, taxPeriod, status, taxDetails } = req.body;
+  const { userId, role } = req.user;
+
+  if (!taxpayerName || !taxPeriod || !status || !taxDetails) {
+    return res.status(400).json({ message: 'Informations du dossier incomplètes.' });
+  }
+
+  try {
+    const dossierId = `dos_${Date.now()}`;
+    const totalAmount = taxDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+
+    const result = await pool.query(
+      `INSERT INTO dossiers (id, taxpayer_name, tax_period, status, tax_details, total_amount, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [dossierId, taxpayerName, taxPeriod, status, JSON.stringify(taxDetails), totalAmount, userId]
+    );
+
+    await addAuditLog(userId, role, `Dossier ${dossierId} created`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erreur lors de la création du dossier:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la création du dossier.' });
+  }
 });
 
 app.put('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.GESTION, ROLES.CAISSE, ROLES.CHEF_DIVISION]), async (req, res) => {
-    const { id } = req.params;
-    const updateData = req.body;
-    const { userId, role } = req.user;
-    try {
-        const db = await readDB();
-        const dossierIndex = db.dossiers.findIndex(d => d.id === id);
-        if (dossierIndex === -1) {
-            return res.status(404).json({ message: 'Dossier non trouvé.' });
-        }
-        const originalDossier = { ...db.dossiers[dossierIndex] };
-        
-        // Update managedBy when status changes to EN_ATTENTE_DE_PAIEMENT
-        if (originalDossier.status === DossierStatus.EN_ATTENTE_DE_CALCUL && updateData.status === DossierStatus.EN_ATTENTE_DE_PAIEMENT) {
-            updateData.managedBy = userId;
-        }
+  const { id } = req.params;
+  const updateData = req.body;
+  const { userId, role } = req.user;
 
-        // Recalculate totalAmount if taxDetails are updated
-        if (updateData.taxDetails) {
-            updateData.totalAmount = updateData.taxDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
-        }
-
-        db.dossiers[dossierIndex] = { ...originalDossier, ...updateData };
-        db.auditLogs.push({ user: userId, role, action: `Dossier ${id} updated`, timestamp: new Date().toISOString() });
-        await writeDB(db);
-        res.json(db.dossiers[dossierIndex]);
-    } catch (error) {
-        console.error("Error updating dossier:", error);
-        res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour du dossier.' });
+  try {
+    const dossierResult = await pool.query('SELECT * FROM dossiers WHERE id = $1', [id]);
+    if (dossierResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Dossier non trouvé.' });
     }
+
+    const originalDossier = dossierResult.rows[0];
+    let managedBy = originalDossier.managed_by;
+
+    // Update managedBy when status changes
+    if (originalDossier.status === DossierStatus.EN_ATTENTE_DE_CALCUL &&
+        updateData.status === DossierStatus.EN_ATTENTE_DE_PAIEMENT) {
+      managedBy = userId;
+    }
+
+    // Recalculate totalAmount if taxDetails are updated
+    let totalAmount = originalDossier.total_amount;
+    if (updateData.taxDetails) {
+      totalAmount = updateData.taxDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+    }
+
+    const fieldsToUpdate = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (updateData.taxpayerName !== undefined) {
+      fieldsToUpdate.push(`taxpayer_name = $${paramIndex++}`);
+      values.push(updateData.taxpayerName);
+    }
+    if (updateData.taxPeriod !== undefined) {
+      fieldsToUpdate.push(`tax_period = $${paramIndex++}`);
+      values.push(updateData.taxPeriod);
+    }
+    if (updateData.status !== undefined) {
+      fieldsToUpdate.push(`status = $${paramIndex++}`);
+      values.push(updateData.status);
+    }
+    if (updateData.taxDetails !== undefined) {
+      fieldsToUpdate.push(`tax_details = $${paramIndex++}`);
+      values.push(JSON.stringify(updateData.taxDetails));
+      fieldsToUpdate.push(`total_amount = $${paramIndex++}`);
+      values.push(totalAmount);
+    }
+    if (managedBy !== originalDossier.managed_by) {
+      fieldsToUpdate.push(`managed_by = $${paramIndex++}`);
+      values.push(managedBy);
+    }
+    if (updateData.paymentMethod !== undefined) {
+      fieldsToUpdate.push(`payment_method = $${paramIndex++}`);
+      values.push(updateData.paymentMethod);
+    }
+    if (updateData.paymentDetails !== undefined) {
+      fieldsToUpdate.push(`payment_details = $${paramIndex++}`);
+      values.push(JSON.stringify(updateData.paymentDetails));
+    }
+
+    values.push(id);
+    const query = `UPDATE dossiers SET ${fieldsToUpdate.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const result = await pool.query(query, values);
+
+    await addAuditLog(userId, role, `Dossier ${id} updated`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du dossier:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour du dossier.' });
+  }
 });
 
 app.delete('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
-    const { id } = req.params;
-    const { userId, role } = req.user;
-    try {
-        const db = await readDB();
-        const initialLength = db.dossiers.length;
-        db.dossiers = db.dossiers.filter(d => d.id !== id);
-        if (db.dossiers.length === initialLength) {
-            return res.status(404).json({ message: 'Dossier non trouvé.' });
-        }
-        db.auditLogs.push({ user: userId, role, action: `Dossier ${id} deleted`, timestamp: new Date().toISOString() });
-        await writeDB(db);
-        res.status(204).send();
-    } catch (error) {
-        console.error("Error deleting dossier:", error);
-        res.status(500).json({ message: 'Erreur du serveur lors de la suppression du dossier.' });
+  const { id } = req.params;
+  const { userId, role } = req.user;
+
+  try {
+    const result = await pool.query('DELETE FROM dossiers WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Dossier non trouvé.' });
     }
+    await addAuditLog(userId, role, `Dossier ${id} deleted`);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erreur lors de la suppression du dossier:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la suppression du dossier.' });
+  }
 });
 
 // --- Resource Orders Routes ---
-// FLUX DES RESSOURCES:
-// 1. Accueil reçoit les ressources physiques et crée des "commandes" pour les distribuer vers les divisions
-// 2. Accueil livre les ressources (statut: "Livré")
-// 3. Les divisions confirment la réception (statut: "Reçu")
-// Create a resource order (Accueil distribue des ressources vers les divisions)
 app.post('/api/resource-orders', authMiddleware, roleAuth([ROLES.ACCUEIL]), async (req, res) => {
   const { resourceType, quantity, unit, targetDivision, description, notes } = req.body;
   const { userId, role } = req.user;
+
   if (!resourceType || !quantity || !unit || !targetDivision) {
-    return res.status(400).json({ message: 'Type de ressource, quantité, unité et division cible sont requis.' });
+    return res.status(400).json({ message: 'Informations de ressource incomplètes.' });
   }
+
   try {
-    const db = await readDB();
-    const now = Date.now();
-    const createdAt = new Date().toISOString();
-    const newResourceOrder = {
-      id: `res_${now}`,
-      resourceType,
-      quantity,
-      unit,
-      description: description || '',
-      requestedBy: userId,
-      requestedByRole: role,
-      targetDivision,
-      createdAt,
-      status: 'En attente',
-      notes: notes || ''
-    };
-    db.resourceOrders.push(newResourceOrder);
-    db.auditLogs.push({ user: userId, role, action: `Resource order ${newResourceOrder.id} created for ${targetDivision}`, timestamp: createdAt });
-    await writeDB(db);
-    res.status(201).json(newResourceOrder);
+    const orderId = `res_${Date.now()}`;
+    const result = await pool.query(
+      `INSERT INTO resource_orders (id, resource_type, quantity, unit, description, requested_by, 
+       requested_by_role, target_division, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [orderId, resourceType, quantity, unit, description || '', userId, role, targetDivision, notes || '']
+    );
+
+    await addAuditLog(userId, role, `Resource order ${orderId} created for ${targetDivision}`);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating resource order:', error);
+    console.error('Erreur lors de la création de la commande:', error);
     res.status(500).json({ message: 'Erreur du serveur lors de la création de la commande de ressources.' });
   }
 });
 
-// Get resource orders. If Accueil, return all orders. If other divisions, return orders for that division.
 app.get('/api/resource-orders', authMiddleware, async (req, res) => {
   try {
     const { userId, role } = req.user;
-    const db = await readDB();
     const { limit, offset } = req.query;
-    let resourceOrders = [];
+    const lim = parseInt(limit) || 1000;
+    const off = parseInt(offset) || 0;
+
+    let query, countQuery, params;
     if (role === ROLES.ACCUEIL) {
-      // Accueil can see all orders they created
-      resourceOrders = db.resourceOrders.filter(order => order.requestedBy === userId);
+      query = 'SELECT * FROM resource_orders WHERE requested_by = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
+      countQuery = 'SELECT COUNT(*) FROM resource_orders WHERE requested_by = $1';
+      params = [userId, lim, off];
     } else {
-      // Other divisions see orders targeted to them
-      resourceOrders = db.resourceOrders.filter(order => order.targetDivision === role);
+      query = 'SELECT * FROM resource_orders WHERE target_division = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
+      countQuery = 'SELECT COUNT(*) FROM resource_orders WHERE target_division = $1';
+      params = [role, lim, off];
     }
-    const sorted = resourceOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    const lim = Number(limit) || sorted.length;
-    const off = Number(offset) || 0;
-    const paged = sorted.slice(off, off + lim);
-    res.json({ items: paged, total: sorted.length });
+
+    const result = await pool.query(query, params);
+    const countResult = await pool.query(countQuery, [role === ROLES.ACCUEIL ? userId : role]);
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({ items: result.rows, total });
   } catch (error) {
-    console.error('Error fetching resource orders:', error);
+    console.error('Erreur lors de la récupération des commandes:', error);
     res.status(500).json({ message: 'Erreur du serveur lors de la récupération des commandes de ressources.' });
   }
 });
 
-// Update resource order status (deliver or confirm receipt)
 app.put('/api/resource-orders/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { userId, role } = req.user;
   const updateData = req.body;
+
   try {
-    const db = await readDB();
-    const index = db.resourceOrders.findIndex(order => order.id === id);
-    if (index === -1) {
+    const orderResult = await pool.query('SELECT * FROM resource_orders WHERE id = $1', [id]);
+    if (orderResult.rows.length === 0) {
       return res.status(404).json({ message: 'Commande de ressources non trouvée.' });
     }
-    const order = db.resourceOrders[index];
-    
+
+    const order = orderResult.rows[0];
+
     // Check permissions
-    if (role === ROLES.ACCUEIL) {
-      // Accueil can update orders they created (deliver them)
-      if (order.requestedBy !== userId) {
-        return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres commandes.' });
-      }
-    } else {
-      // Other divisions can only confirm receipt of orders targeted to them
-      if (order.targetDivision !== role) {
-        return res.status(403).json({ message: 'Vous ne pouvez confirmer que les commandes adressées à votre division.' });
-      }
+    if (role === ROLES.ACCUEIL && order.requested_by !== userId) {
+      return res.status(403).json({ message: 'Vous ne pouvez modifier que vos propres commandes.' });
+    } else if (role !== ROLES.ACCUEIL && order.target_division !== role) {
+      return res.status(403).json({ message: 'Vous ne pouvez confirmer que les commandes adressées à votre division.' });
     }
-    
-    db.resourceOrders[index] = { ...order, ...updateData };
-    const action = updateData.status === 'Livré' ? 'delivered' : 
+
+    const fieldsToUpdate = [];
+    const values = [];
+    let paramIndex = 1;
+
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined) {
+        fieldsToUpdate.push(`${key} = $${paramIndex++}`);
+        values.push(updateData[key]);
+      }
+    });
+
+    values.push(id);
+    const query = `UPDATE resource_orders SET ${fieldsToUpdate.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const result = await pool.query(query, values);
+
+    const action = updateData.status === 'Livré' ? 'delivered' :
                    updateData.status === 'Reçu' ? 'confirmed receipt of' : 'updated';
-    db.auditLogs.push({ user: userId, role, action: `Resource order ${id} ${action}`, timestamp: new Date().toISOString() });
-    await writeDB(db);
-    res.json(db.resourceOrders[index]);
+    await addAuditLog(userId, role, `Resource order ${id} ${action}`);
+
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating resource order:', error);
+    console.error('Erreur lors de la mise à jour de la commande:', error);
     res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour de la commande de ressources.' });
   }
 });
 
 // --- Personnel Routes ---
 app.get('/api/personnel', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
-    try {
-        const db = await readDB();
-        res.json(db.personnel);
-    } catch (error) {
-        res.status(500).json({ message: 'Erreur du serveur lors de la récupération du personnel.' });
-    }
+  try {
+    const result = await pool.query('SELECT * FROM personnel ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erreur lors de la récupération du personnel:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la récupération du personnel.' });
+  }
 });
 
 app.post('/api/personnel', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
-    const { name, division, affectation } = req.body;
-    const { userId, role } = req.user;
-    if (!name || !division || !affectation) {
-        return res.status(400).json({ message: 'Le nom, la division et l\'affectation sont requis.' });
-    }
-    try {
-        const db = await readDB();
-        const now = new Date().toISOString();
-        const newPersonnel = {
-            id: `pers_${Date.now()}`,
-            name,
-            division,
-            affectation,
-            history: [{
-                division,
-                affectation,
-                startDate: now,
-                endDate: null
-            }]
-        };
-        db.personnel.push(newPersonnel);
-        db.auditLogs.push({ user: userId, role, action: `Personnel ${newPersonnel.id} created`, timestamp: now });
-        await writeDB(db);
-        res.status(201).json(newPersonnel);
-    } catch (error) {
-        console.error("Error creating personnel:", error);
-        res.status(500).json({ message: 'Erreur du serveur lors de la création du personnel.' });
-    }
+  const { name, division, affectation } = req.body;
+  const { userId, role } = req.user;
+
+  if (!name || !division || !affectation) {
+    return res.status(400).json({ message: 'Informations du personnel incomplètes.' });
+  }
+
+  try {
+    const personnelId = `pers_${Date.now()}`;
+    const history = [{
+      division,
+      affectation,
+      startDate: new Date().toISOString(),
+      endDate: null
+    }];
+
+    const result = await pool.query(
+      `INSERT INTO personnel (id, name, division, affectation, history)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [personnelId, name, division, affectation, JSON.stringify(history)]
+    );
+
+    await addAuditLog(userId, role, `Personnel ${personnelId} created`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erreur lors de la création du personnel:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la création du personnel.' });
+  }
 });
 
 app.put('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
-    const { id } = req.params;
-    const { name, division, affectation, history } = req.body;
-    const { userId, role } = req.user;
-    if (!name || !division || !affectation) {
-        return res.status(400).json({ message: 'Le nom, la division et l\'affectation sont requis.' });
+  const { id } = req.params;
+  const { name, division, affectation, history } = req.body;
+  const { userId, role } = req.user;
+
+  if (!name || !division || !affectation) {
+    return res.status(400).json({ message: 'Informations du personnel incomplètes.' });
+  }
+
+  try {
+    const personnelResult = await pool.query('SELECT * FROM personnel WHERE id = $1', [id]);
+    if (personnelResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Personnel non trouvé.' });
     }
-    try {
-        const db = await readDB();
-        const personnelIndex = db.personnel.findIndex(p => p.id === id);
-        if (personnelIndex === -1) {
-            return res.status(404).json({ message: 'Personnel non trouvé.' });
+
+    const currentPersonnel = personnelResult.rows[0];
+    let updatedHistory = history ? history : JSON.parse(currentPersonnel.history || '[]');
+
+    // Si pas d'historique fourni, gérer automatiquement
+    if (!history) {
+      const currentHistory = JSON.parse(currentPersonnel.history || '[]');
+      const latestHistory = currentHistory.length > 0 ? currentHistory[currentHistory.length - 1] : null;
+
+      const isNewAssignment = !latestHistory ||
+        latestHistory.division !== division ||
+        latestHistory.affectation !== affectation;
+
+      if (isNewAssignment) {
+        updatedHistory = [...currentHistory];
+        if (latestHistory && !latestHistory.endDate) {
+          updatedHistory[updatedHistory.length - 1] = { ...latestHistory, endDate: new Date().toISOString() };
         }
-        
-        const currentPersonnel = db.personnel[personnelIndex];
-        const now = new Date().toISOString();
-        
-        // Si l'historique est fourni depuis le frontend (pour les modifications complexes)
-        let updatedHistory = history || currentPersonnel.history || [];
-        
-        // Sinon, gestion automatique de l'historique pour les modifications simples
-        if (!history) {
-            const currentHistory = currentPersonnel.history || [];
-            const latestHistory = currentHistory.length > 0 ? currentHistory[currentHistory.length - 1] : null;
-            
-            // Vérifier si c'est une nouvelle affectation
-            const isNewAssignment = !latestHistory || 
-                                  latestHistory.division !== division || 
-                                  latestHistory.affectation !== affectation;
-            
-            if (isNewAssignment) {
-                updatedHistory = [...currentHistory];
-                // Fermer l'affectation précédente
-                if (latestHistory && !latestHistory.endDate) {
-                    updatedHistory[updatedHistory.length - 1] = { ...latestHistory, endDate: now };
-                }
-                // Ajouter la nouvelle affectation
-                updatedHistory.push({
-                    division,
-                    affectation,
-                    startDate: now,
-                    endDate: null
-                });
-            }
-        }
-        
-        const updatedPersonnel = {
-            ...currentPersonnel,
-            name,
-            division,
-            affectation,
-            history: updatedHistory
-        };
-        
-        db.personnel[personnelIndex] = updatedPersonnel;
-        db.auditLogs.push({ user: userId, role, action: `Personnel ${id} updated`, timestamp: now });
-        await writeDB(db);
-        res.json(updatedPersonnel);
-    } catch (error) {
-        console.error("Error updating personnel:", error);
-        res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour du personnel.' });
+        updatedHistory.push({
+          division,
+          affectation,
+          startDate: new Date().toISOString(),
+          endDate: null
+        });
+      }
     }
+
+    const result = await pool.query(
+      `UPDATE personnel SET name = $1, division = $2, affectation = $3, history = $4
+       WHERE id = $5 RETURNING *`,
+      [name, division, affectation, JSON.stringify(updatedHistory), id]
+    );
+
+    await addAuditLog(userId, role, `Personnel ${id} updated`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du personnel:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la mise à jour du personnel.' });
+  }
 });
 
 app.delete('/api/personnel/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]), async (req, res) => {
-    const { id } = req.params;
-    const { userId, role } = req.user;
-    try {
-        const db = await readDB();
-        const initialLength = db.personnel.length;
-        db.personnel = db.personnel.filter(p => p.id !== id);
-        if (db.personnel.length === initialLength) {
-            return res.status(404).json({ message: 'Personnel non trouvé.' });
-        }
-        db.auditLogs.push({ user: userId, role, action: `Personnel ${id} deleted`, timestamp: new Date().toISOString() });
-        await writeDB(db);
-        res.status(204).send();
-    } catch (error) {
-        console.error("Error deleting personnel:", error);
-        res.status(500).json({ message: 'Erreur du serveur lors de la suppression du personnel.' });
+  const { id } = req.params;
+  const { userId, role } = req.user;
+
+  try {
+    const result = await pool.query('DELETE FROM personnel WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Personnel non trouvé.' });
     }
+    await addAuditLog(userId, role, `Personnel ${id} deleted`);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erreur lors de la suppression du personnel:', error);
+    res.status(500).json({ message: 'Erreur du serveur lors de la suppression du personnel.' });
+  }
 });
 
-
-
-// --- Server ---
+// --- Server Startup ---
 const startServer = async () => {
-  await initializeDatabase();
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`Le serveur backend est en écoute sur http://0.0.0.0:${port}`);
-  });
+  try {
+    await initializeDatabase();
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`✅ Le serveur backend est en écoute sur http://0.0.0.0:${port}`);
+      console.log(`🔒 Mode: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('❌ Erreur lors du démarrage du serveur:', error);
+    process.exit(1);
+  }
 };
 
 startServer();

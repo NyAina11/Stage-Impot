@@ -1,18 +1,48 @@
 version: '3.8'
 
 services:
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: ascf_postgres
+    environment:
+      POSTGRES_USER: ascf_user
+      POSTGRES_PASSWORD: ascf_password_2024
+      POSTGRES_DB: ascf_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./Back-end/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ascf_user -d ascf_database"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./Back-end
+    container_name: ascf_backend
     ports:
       - "3001:3001"
     volumes:
       - ./Back-end:/usr/src/app
       - /usr/src/app/node_modules
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ascf_user:ascf_password_2024@postgres:5432/ascf_database
+      JWT_SECRET: ${JWT_SECRET:-votre_super_secret_jwt_a_remplacer_en_production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./Front-end
+    container_name: ascf_frontend
     ports:
       - "8080:80"
     volumes:
@@ -20,3 +50,8 @@ services:
       - /usr/src/app/node_modules
     depends_on:
       - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
