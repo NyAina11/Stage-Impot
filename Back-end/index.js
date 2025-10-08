@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'votre_super_secret_jwt_a_remplacer
 // Configuration de la connexion PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: false
 });
 
 // Test de connexion
