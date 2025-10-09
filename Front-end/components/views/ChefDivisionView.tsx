@@ -2,6 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { DossierStatus } from '../../types';
 
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+
 function mapDossierToDossierPaiement(dossier: any): any {
     return {
         ...dossier,
@@ -16,7 +20,6 @@ function mapDossierToDossierPaiement(dossier: any): any {
 }
 import Button from '../ui/Button';
 import Card from '../ui/Card';
-import Badge from '../ui/Badge';
 import DossierDetailModal from '../DossierDetailModal';
 import KPICharts from '../KPICharts';
 
@@ -24,7 +27,6 @@ const ChefDivisionView: React.FC = () => {
     const { dossiers, cancelDossier } = useAppStore();
     const [filters, setFilters] = useState({
         searchTerm: '',
-        status: '',
         startDate: '',
         endDate: '',
     });
@@ -46,13 +48,11 @@ const ChefDivisionView: React.FC = () => {
                 d.taxpayerName.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
                 d.taxPeriod.toLowerCase().includes(filters.searchTerm.toLowerCase());
 
-            const statusMatch = filters.status === '' || d.status === filters.status;
-
             const date = new Date(d.createdAt);
             const startDateMatch = filters.startDate === '' || date >= new Date(filters.startDate);
             const endDateMatch = filters.endDate === '' || date <= new Date(filters.endDate);
 
-            return searchTermMatch && statusMatch && startDateMatch && endDateMatch;
+            return searchTermMatch && startDateMatch && endDateMatch;
         });
     }, [dossiers, filters]);
     
@@ -64,10 +64,28 @@ const ChefDivisionView: React.FC = () => {
         }
     };
     
-    // Note: PDF/Excel export is a complex feature requiring libraries. This is a placeholder.
-    const handleExport = () => {
-        alert("La fonctionnalité d'exportation sera implémentée ultérieurement.");
+    const handleExportPDF = () => {
+        const doc = new jsPDF();
+        doc.autoTable({
+            head: [['ID', 'Contribuable', "Type d'impôt", 'Mois', 'Date Création']],
+            body: filteredDossiers.map(d => [d.id, d.taxpayerName, d.taxDetails ? d.taxDetails.map(td => td.name).join(', ') : 'N/A', d.taxPeriod, new Date(d.createdAt).toLocaleDateString('fr-FR')]),
+        });
+        doc.save('dossiers.pdf');
     };
+
+    const handleExportExcel = () => {
+        const ws = XLSX.utils.json_to_sheet(filteredDossiers.map(d => ({
+            'ID': d.id,
+            'Contribuable': d.taxpayerName,
+            "Type d'impôt": d.taxDetails ? d.taxDetails.map(td => td.name).join(', ') : 'N/A',
+            'Mois': d.taxPeriod,
+            'Date Création': new Date(d.createdAt).toLocaleDateString('fr-FR'),
+        })));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Dossiers');
+        XLSX.writeFile(wb, 'dossiers.xlsx');
+    };
+
 
     return (
         <div className="space-y-8">
@@ -78,15 +96,13 @@ const ChefDivisionView: React.FC = () => {
                 <h2 className="text-xl font-bold mb-4">Consultation de tous les dossiers</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                     <input name="searchTerm" placeholder="Rechercher..." onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
-                    <select name="status" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600">
-                        <option value="">Tous les statuts</option>
-                        {Object.values(DossierStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+
                     <input name="startDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
                     <input name="endDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
                 </div>
-                <div className="flex justify-end mb-4">
-                    <Button onClick={handleExport}>Exporter en PDF/Excel</Button>
+                <div className="flex justify-end mb-4 space-x-2">
+                    <Button onClick={handleExportPDF}>Exporter en PDF</Button>
+                    <Button onClick={handleExportExcel}>Exporter en Excel</Button>
                 </div>
                  <div className="overflow-x-auto">
                      <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
@@ -94,8 +110,8 @@ const ChefDivisionView: React.FC = () => {
                             <tr>
                                 <th className="px-6 py-3">ID</th>
                                 <th className="px-6 py-3">Contribuable</th>
-                                <th className="px-6 py-3">Montant</th>
-                                <th className="px-6 py-3">Statut</th>
+                                <th className="px-6 py-3">Type d'impôt</th>
+                                <th className="px-6 py-3">Mois</th>
                                 <th className="px-6 py-3">Date Création</th>
                                 <th className="px-6 py-3">Actions</th>
                             </tr>
@@ -105,8 +121,8 @@ const ChefDivisionView: React.FC = () => {
                                 <tr key={d.id} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{d.id}</td>
                                     <td className="px-6 py-4">{d.taxpayerName}</td>
-                                    <td className="px-6 py-4">{d.totalAmount ? `${d.totalAmount.toLocaleString('fr-FR')} Ar` : 'N/A'}</td>
-                                    <td className="px-6 py-4"><Badge status={d.status} /></td>
+                                    <td className="px-6 py-4">{d.taxDetails ? d.taxDetails.map(td => td.name).join(', ') : 'N/A'}</td>
+                                    <td className="px-6 py-4">{d.taxPeriod}</td>
                                     <td className="px-6 py-4">{new Date(d.createdAt).toLocaleDateString('fr-FR')}</td>
                                     <td className="px-6 py-4 flex space-x-2">
                                         <Button variant="secondary" onClick={() => setModalDossier(mapDossierToDossierPaiement(d))}>Détails</Button>
