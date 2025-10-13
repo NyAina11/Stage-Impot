@@ -20,15 +20,14 @@ const KPICharts: React.FC<KPIChartsProps> = ({ dossiers }) => {
 
     const totalToday = paidDossiers
       .filter(d => new Date(d.paymentDate!).toDateString() === new Date().toDateString())
-      .reduce((sum, d) => sum + (d.amountDue || 0), 0);
+      .reduce((sum, d) => sum + (parseFloat(d.amountDue as any) || 0), 0);
 
     const totalWeek = paidDossiers
-      .filter(d => new Date(d.paymentDate!) >= startOfWeek)
-      .reduce((sum, d) => sum + (d.amountDue || 0), 0);
+      .reduce((sum, d) => sum + (parseFloat(d.amountDue as any) || 0), 0);
       
     const totalMonth = paidDossiers
       .filter(d => new Date(d.paymentDate!) >= startOfMonth)
-      .reduce((sum, d) => sum + (d.amountDue || 0), 0);
+      .reduce((sum, d) => sum + (parseFloat(d.amountDue as any) || 0), 0);
 
     const statusCounts = dossiers.reduce((acc, d) => {
         acc[d.status] = (acc[d.status] || 0) + 1;
@@ -52,7 +51,7 @@ const KPICharts: React.FC<KPIChartsProps> = ({ dossiers }) => {
     const paidDossiers = dossiers.filter(d => d.status === DossierStatus.PAYE && d.paymentDate);
     paidDossiers.forEach(d => {
         const date = new Date(d.paymentDate!).toLocaleDateString('fr-CA'); // YYYY-MM-DD
-        data[date] = (data[date] || 0) + (d.amountDue || 0);
+        data[date] = (data[date] || 0) + (parseFloat(d.amountDue as any) || 0);
     });
     return Object.entries(data).map(([date, total]) => ({ date, total })).sort((a,b) => a.date.localeCompare(b.date)).slice(-30); // last 30 days
   }, [dossiers]);

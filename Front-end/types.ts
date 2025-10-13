@@ -32,6 +32,7 @@ export interface User {
 export interface PaymentDetails {
   processedBy: string;
   processedAt: string;
+  bankName?: string;
   chequeNumber?: string;
   bankTransferRef?: string;
 }

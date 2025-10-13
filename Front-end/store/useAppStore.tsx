@@ -206,6 +206,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             paymentDetails: {
                 processedBy: currentUser.id,
                 processedAt: new Date().toISOString(),
+                bankName: paymentDetails.bankName,
                 chequeNumber: paymentDetails.chequeNumber,
                 bankTransferRef: paymentDetails.bankTransferRef,
             },

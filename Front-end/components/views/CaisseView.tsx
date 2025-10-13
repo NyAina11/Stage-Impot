@@ -24,7 +24,7 @@ const CaisseView: React.FC = () => {
                 total: 0,
             };
             for (const d of dossierList) {
-                const amount = d.totalAmount || 0; 
+                const amount = parseFloat(d.totalAmount as any) || 0; 
                 if (d.paymentMethod && totals.hasOwnProperty(d.paymentMethod)) {
                     totals[d.paymentMethod] += amount;
                 }
@@ -165,6 +165,7 @@ const CaisseView: React.FC = () => {
                                 <th scope="col" className="px-6 py-3">Contribuable</th>
                                 <th scope="col" className="px-6 py-3">Montant Payé</th>
                                 <th scope="col" className="px-6 py-3">Date Paiement</th>
+                                <th scope="col" className="px-6 py-3">Méthode de paiement</th>
                                 <th scope="col" className="px-6 py-3">Action</th>
                             </tr>
                         </thead>
@@ -174,7 +175,13 @@ const CaisseView: React.FC = () => {
                                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{dossier.id}</td>
                                     <td className="px-6 py-4">{dossier.taxpayerName}</td>
                                     <td className="px-6 py-4">{dossier.totalAmount?.toLocaleString('fr-FR')} Ar</td> 
-                                    <td className="px-6 py-4">{dossier.paymentDetails?.processedAt ? new Date(dossier.paymentDetails.processedAt).toLocaleDateString('fr-FR') : 'N/A'}</td> 
+                                    <td className="px-6 py-4">{dossier.paymentDetails?.processedAt ? new Date(dossier.paymentDetails.processedAt).toLocaleDateString('fr-FR') : 'N/A'}</td>
+                                    <td className="px-6 py-4">
+                                        {dossier.paymentMethod}
+                                        {dossier.paymentMethod === PaymentMethod.VIREMENT && dossier.paymentDetails?.bankName && (
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 block">({dossier.paymentDetails.bankName})</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4">
                                         <Button variant="secondary" onClick={() => setSelectedDossier(dossier)}>Voir Détails</Button>
                                     </td>
