@@ -284,29 +284,29 @@ app.put('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.GESTION, ROLES.CAIS
 
     // Recalculate totalAmount if taxDetails are updated
     let totalAmount = originalDossier.total_amount;
-    if (updateData.taxDetails) {
-      totalAmount = updateData.taxDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+    if (updateData.tax_details) {
+      totalAmount = updateData.tax_details.reduce((sum, detail) => sum + (detail.amount || 0), 0);
     }
 
     const fieldsToUpdate = [];
     const values = [];
     let paramIndex = 1;
 
-    if (updateData.taxpayerName !== undefined) {
+    if (updateData.taxpayer_name !== undefined) {
       fieldsToUpdate.push(`taxpayer_name = $${paramIndex++}`);
-      values.push(updateData.taxpayerName);
+      values.push(updateData.taxpayer_name);
     }
-    if (updateData.taxPeriod !== undefined) {
+    if (updateData.tax_period !== undefined) {
       fieldsToUpdate.push(`tax_period = $${paramIndex++}`);
-      values.push(updateData.taxPeriod);
+      values.push(updateData.tax_period);
     }
     if (updateData.status !== undefined) {
       fieldsToUpdate.push(`status = $${paramIndex++}`);
       values.push(updateData.status);
     }
-    if (updateData.taxDetails !== undefined) {
+    if (updateData.tax_details !== undefined) {
       fieldsToUpdate.push(`tax_details = $${paramIndex++}`);
-      values.push(JSON.stringify(updateData.taxDetails));
+      values.push(JSON.stringify(updateData.tax_details));
       fieldsToUpdate.push(`total_amount = $${paramIndex++}`);
       values.push(totalAmount);
     }
@@ -314,13 +314,13 @@ app.put('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.GESTION, ROLES.CAIS
       fieldsToUpdate.push(`managed_by = $${paramIndex++}`);
       values.push(managedBy);
     }
-    if (updateData.paymentMethod !== undefined) {
+    if (updateData.payment_method !== undefined) {
       fieldsToUpdate.push(`payment_method = $${paramIndex++}`);
-      values.push(updateData.paymentMethod);
+      values.push(updateData.payment_method);
     }
-    if (updateData.paymentDetails !== undefined) {
+    if (updateData.payment_details !== undefined) {
       fieldsToUpdate.push(`payment_details = $${paramIndex++}`);
-      values.push(JSON.stringify(updateData.paymentDetails));
+      values.push(JSON.stringify(updateData.payment_details));
     }
 
     values.push(id);
