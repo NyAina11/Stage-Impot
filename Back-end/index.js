@@ -41,8 +41,29 @@ const DossierStatus = {
 };
 
 // Middleware
+const _ = require('lodash');
+
+const snakeCaseKeys = (obj) => {
+  if (Array.isArray(obj)) {
+    return obj.map(v => snakeCaseKeys(v));
+  }
+  if (obj !== null && obj.constructor === Object) {
+    return Object.keys(obj).reduce((result, key) => {
+      result[_.snakeCase(key)] = snakeCaseKeys(obj[key]);
+      return result;
+    }, {});
+  }
+  return obj;
+};
+
+const snakeCaseMiddleware = (req, res, next) => {
+  req.body = snakeCaseKeys(req.body);
+  next();
+};
+
 app.use(cors());
 app.use(express.json());
+app.use(snakeCaseMiddleware);
 
 // --- Initialisation de la base de données ---
 const initializeDatabase = async () => {
@@ -216,21 +237,21 @@ app.get('/api/dossiers', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/dossiers', authMiddleware, roleAuth([ROLES.ACCUEIL, ROLES.GESTION]), async (req, res) => {
-  const { taxpayerName, taxPeriod, status, taxDetails } = req.body;
+  const { taxpayer_name, tax_period, status, tax_details } = req.body;
   const { userId, role } = req.user;
 
-  if (!taxpayerName || !taxPeriod || !status || !taxDetails) {
+  if (!taxpayer_name || !tax_period || !status || !tax_details) {
     return res.status(400).json({ message: 'Informations du dossier incomplètes.' });
   }
 
   try {
     const dossierId = `dos_${Date.now()}`;
-    const totalAmount = taxDetails.reduce((sum, detail) => sum + (detail.amount || 0), 0);
+    const totalAmount = tax_details.reduce((sum, detail) => sum + (detail.amount || 0), 0);
 
     const result = await pool.query(
       `INSERT INTO dossiers (id, taxpayer_name, tax_period, status, tax_details, total_amount, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [dossierId, taxpayerName, taxPeriod, status, JSON.stringify(taxDetails), totalAmount, userId]
+      [dossierId, taxpayer_name, tax_period, status, JSON.stringify(tax_details), totalAmount, userId]
     );
 
     await addAuditLog(userId, role, `Dossier ${dossierId} created`);
@@ -333,10 +354,10 @@ app.delete('/api/dossiers/:id', authMiddleware, roleAuth([ROLES.CHEF_DIVISION]),
 
 // --- Resource Orders Routes ---
 app.post('/api/resource-orders', authMiddleware, roleAuth([ROLES.ACCUEIL]), async (req, res) => {
-  const { resourceType, quantity, unit, targetDivision, description, notes } = req.body;
+  const { resource_type, quantity, unit, target_division, description, notes } = req.body;
   const { userId, role } = req.user;
 
-  if (!resourceType || !quantity || !unit || !targetDivision) {
+  if (!resource_type || !quantity || !unit || !target_division) {
     return res.status(400).json({ message: 'Informations de ressource incomplètes.' });
   }
 
@@ -345,11 +366,11 @@ app.post('/api/resource-orders', authMiddleware, roleAuth([ROLES.ACCUEIL]), asyn
     const result = await pool.query(
       `INSERT INTO resource_orders (id, resource_type, quantity, unit, description, requested_by, 
        requested_by_role, target_division, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [orderId, resourceType, quantity, unit, description || '', userId, role, targetDivision, notes || '']
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [orderId, resource_type, quantity, unit, description || '', userId, role, target_division, notes || '']
     );
 
-    await addAuditLog(userId, role, `Resource order ${orderId} created for ${targetDivision}`);
+    await addAuditLog(userId, role, `Resource order ${orderId} created for ${target_division}`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Erreur lors de la création de la commande:', error);

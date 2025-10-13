@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS resource_orders (
     target_division VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) NOT NULL DEFAULT 'En attente',
+    delivered_by VARCHAR(100) REFERENCES users(id),
+    delivered_at TIMESTAMP,
+    received_by VARCHAR(100) REFERENCES users(id),
+    received_at TIMESTAMP,
     notes TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
