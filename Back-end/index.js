@@ -381,24 +381,40 @@ app.post('/api/resource-orders', authMiddleware, roleAuth([ROLES.ACCUEIL]), asyn
 app.get('/api/resource-orders', authMiddleware, async (req, res) => {
   try {
     const { userId, role } = req.user;
-    const { limit, offset } = req.query;
-    const lim = parseInt(limit) || 1000;
+    const { limit, offset, status } = req.query;
+    const lim = parseInt(limit) || 10;
     const off = parseInt(offset) || 0;
 
-    let query, countQuery, params;
+    let whereClauses = [];
+    let queryParams = [];
+    let countParams = [];
+
     if (role === ROLES.ACCUEIL) {
-      query = 'SELECT * FROM resource_orders WHERE requested_by = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
-      countQuery = 'SELECT COUNT(*) FROM resource_orders WHERE requested_by = $1';
-      params = [userId, lim, off];
+      whereClauses.push(`requested_by = $${queryParams.length + 1}`);
+      queryParams.push(userId);
+      countParams.push(userId);
     } else {
-      query = 'SELECT * FROM resource_orders WHERE target_division = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
-      countQuery = 'SELECT COUNT(*) FROM resource_orders WHERE target_division = $1';
-      params = [role, lim, off];
+      whereClauses.push(`target_division = $${queryParams.length + 1}`);
+      queryParams.push(role);
+      countParams.push(role);
     }
 
-    const result = await pool.query(query, params);
-    const countResult = await pool.query(countQuery, [role === ROLES.ACCUEIL ? userId : role]);
+    if (status) {
+      whereClauses.push(`status = $${queryParams.length + 1}`);
+      queryParams.push(status);
+      countParams.push(status);
+    }
+
+    const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const countQuery = `SELECT COUNT(*) FROM resource_orders ${whereString}`;
+    const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].count);
+
+    queryParams.push(lim, off);
+    const query = `SELECT * FROM resource_orders ${whereString} ORDER BY created_at DESC LIMIT $${whereClauses.length + 1} OFFSET $${whereClauses.length + 2}`;
+    
+    const result = await pool.query(query, queryParams);
 
     res.json({ items: result.rows, total });
   } catch (error) {

@@ -9,6 +9,7 @@ interface AppState {
   dossiersLoading: boolean;
   dossiersError: string | null;
   resourceOrders: ResourceOrder[];
+  resourceOrdersTotal: number;
   resourceOrdersLoading: boolean;
   resourceOrdersError: string | null;
   unreadResourceOrdersCount: number;
@@ -24,7 +25,7 @@ interface AppState {
   confirmPayment: (dossierId: string, paymentDetails: { method: PaymentMethod; bankName?: string; chequeNumber?: string; bankTransferRef?: string }) => Promise<void>;
   cancelDossier: (dossierId: string, reason: string) => Promise<void>;
   deleteDossier: (dossierId: string) => Promise<void>;
-  fetchResourceOrders: (params?: { limit?: number; offset?: number }, append?: boolean) => Promise<{ fetched: number; total: number } | void>;
+  fetchResourceOrders: (params: { limit?: number; offset?: number; status?: string }) => Promise<void>;
   createResourceOrder: (orderData: { resourceType: ResourceType; quantity: number; unit: string; targetDivision: Role; description?: string; notes?: string }) => Promise<void>;
   deliverResourceOrder: (id: string, notes?: string) => Promise<void>;
   confirmResourceOrderReceipt: (id: string, notes?: string) => Promise<void>;
@@ -52,6 +53,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [dossiersLoading, setDossiersLoading] = useState<boolean>(false);
     const [dossiersError, setDossiersError] = useState<string | null>(null);
     const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
+    const [resourceOrdersTotal, setResourceOrdersTotal] = useState<number>(0);
     const [resourceOrdersLoading, setResourceOrdersLoading] = useState<boolean>(false);
     const [resourceOrdersError, setResourceOrdersError] = useState<string | null>(null);
     const [unreadResourceOrdersCount, setUnreadResourceOrdersCount] = useState<number>(0);
@@ -105,16 +107,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [token]);
 
-    const fetchResourceOrders = useCallback(async (params?: { limit?: number; offset?: number }, append: boolean = false) => {
+    const fetchResourceOrders = useCallback(async (params: { limit?: number; offset?: number; status?: string } = {}) => {
         if (!token) return;
         setResourceOrdersLoading(true);
         setResourceOrdersError(null);
         try {
             const response = await apiGetResourceOrders(params);
-            const items = Array.isArray(response.data) ? response.data : response.data.items;
-            const total = Array.isArray(response.data) ? items.length : response.data.total;
-            setResourceOrders(prev => append ? [...prev, ...items] : items);
-            return { fetched: items.length, total };
+            const { items, total } = response.data;
+            setResourceOrders(items);
+            setResourceOrdersTotal(total);
         } catch (error: any) {
             console.error('Erreur lors de la récupération des commandes de ressources:', error);
             setResourceOrdersError(error.response?.data?.message || 'Échec de la récupération des commandes de ressources.');
@@ -367,6 +368,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         dossiersLoading,
         dossiersError,
         resourceOrders,
+        resourceOrdersTotal,
         resourceOrdersLoading,
         resourceOrdersError,
         unreadResourceOrdersCount,

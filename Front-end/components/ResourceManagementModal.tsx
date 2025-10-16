@@ -3,7 +3,8 @@ import Card from './ui/Card';
 import Button from './ui/Button';
 import Input from './ui/Input';
 import { useAppStore } from '../store/useAppStore';
-import { ResourceType, Role } from '../types';
+import { ResourceType, Role, ResourceOrderStatus } from '../types';
+import React, { useState, useEffect } from 'react';
 
 interface ResourceManagementModalProps {
     onClose: () => void;
@@ -15,9 +16,23 @@ const ResourceManagementModal: React.FC<ResourceManagementModalProps> = ({ onClo
         deliverResourceOrder, 
         confirmResourceOrderReceipt, 
         resourceOrders, 
+        resourceOrdersTotal,
+        fetchResourceOrders,
         resourceOrdersLoading,
         currentUser 
     } = useAppStore();
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [statusFilter, setStatusFilter] = useState('');
+    const ordersPerPage = 5;
+
+    useEffect(() => {
+        fetchResourceOrders({
+            limit: ordersPerPage,
+            offset: (currentPage - 1) * ordersPerPage,
+            status: statusFilter || undefined,
+        });
+    }, [currentPage, statusFilter, fetchResourceOrders]);
 
     const [resourceType, setResourceType] = useState<ResourceType>(ResourceType.PAPIER);
     const [quantity, setQuantity] = useState<number>(1);
@@ -167,6 +182,20 @@ const ResourceManagementModal: React.FC<ResourceManagementModalProps> = ({ onClo
                         <h3 className="text-lg font-semibold mb-2">
                             {canCreateOrders ? 'Ressources Distribuées' : 'Ressources Reçues'}
                         </h3>
+                        <div className="flex items-center space-x-4 mb-4">
+                            <label htmlFor="statusFilter" className="block text-sm font-medium">Filtrer par statut</label>
+                            <select 
+                                id="statusFilter"
+                                value={statusFilter} 
+                                onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            >
+                                <option value="">Tous</option>
+                                <option value={ResourceOrderStatus.EN_ATTENTE}>En attente</option>
+                                <option value={ResourceOrderStatus.LIVRE}>Livré</option>
+                                <option value={ResourceOrderStatus.RECU}>Reçu</option>
+                            </select>
+                        </div>
                         <div className="overflow-x-auto">
                             {resourceOrders.length === 0 ? (
                                 <p className="text-center text-gray-500 dark:text-gray-400">
@@ -231,6 +260,17 @@ const ResourceManagementModal: React.FC<ResourceManagementModalProps> = ({ onClo
                                     </tbody>
                                 </table>
                             )}
+                        </div>
+                        <div className="flex justify-between items-center mt-4">
+                            <span>Page {currentPage} sur {Math.ceil(resourceOrdersTotal / ordersPerPage)}</span>
+                            <div className="flex space-x-2">
+                                <Button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                                    Précédent
+                                </Button>
+                                <Button onClick={() => setCurrentPage(p => Math.min(Math.ceil(resourceOrdersTotal / ordersPerPage), p + 1))} disabled={currentPage === Math.ceil(resourceOrdersTotal / ordersPerPage)}>
+                                    Suivant
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
