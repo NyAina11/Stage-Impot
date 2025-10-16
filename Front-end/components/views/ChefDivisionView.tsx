@@ -64,18 +64,6 @@ const ChefDivisionView: React.FC = () => {
         }
     };
     
-    const handleExportPDF = () => {
-        const now = new Date();
-        const formattedDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}-${now.getSeconds().toString().padStart(2, '0')}-${now.getMilliseconds().toString().padStart(3, '0')}`;
-        const fileName = `dossiers_${formattedDate}.pdf`;
-
-        const doc = new jsPDF();
-        doc.autoTable({
-            head: [['ID', 'Contribuable', "Type d'impôt", 'Mois', 'Date Création']],
-            body: filteredDossiers.map(d => [d.id, d.taxpayerName, d.taxDetails ? d.taxDetails.map(td => td.name).join(', ') : 'N/A', d.taxPeriod, new Date(d.createdAt).toLocaleDateString('fr-FR')]),
-        });
-        doc.save(fileName);
-    };
 
     const handleExportExcel = () => {
         const now = new Date();
@@ -109,7 +97,6 @@ const ChefDivisionView: React.FC = () => {
                     <input name="endDate" type="date" onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600" />
                 </div>
                 <div className="flex justify-end mb-4 space-x-2">
-                    <Button onClick={handleExportPDF}>Exporter en PDF</Button>
                     <Button onClick={handleExportExcel}>Exporter en Excel</Button>
                 </div>
                  <div className="overflow-x-auto">
