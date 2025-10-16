@@ -65,15 +65,23 @@ const ChefDivisionView: React.FC = () => {
     };
     
     const handleExportPDF = () => {
+        const now = new Date();
+        const formattedDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}-${now.getSeconds().toString().padStart(2, '0')}-${now.getMilliseconds().toString().padStart(3, '0')}`;
+        const fileName = `dossiers_${formattedDate}.pdf`;
+
         const doc = new jsPDF();
         doc.autoTable({
             head: [['ID', 'Contribuable', "Type d'impôt", 'Mois', 'Date Création']],
             body: filteredDossiers.map(d => [d.id, d.taxpayerName, d.taxDetails ? d.taxDetails.map(td => td.name).join(', ') : 'N/A', d.taxPeriod, new Date(d.createdAt).toLocaleDateString('fr-FR')]),
         });
-        doc.save('dossiers.pdf');
+        doc.save(fileName);
     };
 
     const handleExportExcel = () => {
+        const now = new Date();
+        const formattedDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}-${now.getSeconds().toString().padStart(2, '0')}-${now.getMilliseconds().toString().padStart(3, '0')}`;
+        const fileName = `dossiers_${formattedDate}.xlsx`;
+
         const ws = XLSX.utils.json_to_sheet(filteredDossiers.map(d => ({
             'ID': d.id,
             'Contribuable': d.taxpayerName,
@@ -83,7 +91,7 @@ const ChefDivisionView: React.FC = () => {
         })));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Dossiers');
-        XLSX.writeFile(wb, 'dossiers.xlsx');
+        XLSX.writeFile(wb, fileName);
     };
 
 
