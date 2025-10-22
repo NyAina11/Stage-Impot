@@ -1,57 +1,25 @@
-name: Deploy Stage-Impot Production
+name: Run Docker Tests
 
 on:
   push:
-    branches: [BD]
+    branches: [ main, BD ]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Create .env file
+
+      - name: Build services
+        run: docker compose -f docker-compose.yml build
+
+      - name: Start containers
+        run: docker compose -f docker-compose.yml up -d
+
+      - name: Run backend tests
         run: |
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-          echo "NODE_ENV=production" >> .env
-      
-      - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          source: ".,!.git,!.github,!node_modules"
-          target: "/var/lib/docker-deploy/stage-impot"
-      
-      - name: Deploy with Docker Compose
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            cd /var/lib/docker-deploy/stage-impot
-            
-            # Pull les dernières images si nécessaire
-            docker compose pull
-            
-            # Build les images custom
-            docker compose build
-            
-            # Redémarrer seulement les services modifiés
-            docker compose up -d --no-deps --build backend frontend
-            
-            # Garder PostgreSQL en cours d'exécution
-            docker compose up -d postgres
-            
-            # Nettoyer les images inutilisées
-            docker image prune -f
-            
-            # Vérifier le statut
-            docker compose ps
+          docker compose exec backend npm test
+
+      - name: Stop containers
+        run: docker compose -f docker-compose.yml down
