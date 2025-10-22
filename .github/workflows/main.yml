@@ -77,17 +77,17 @@ jobs:
 
       - name: Lint frontend
         run: |
-          cd frontend
+          cd Front-end
           npm run lint || echo "No linter configured"
 
       - name: Run frontend tests (si gérés)
         run: |
-          cd frontend
+          cd Front-end
           npm test || echo "No tests configured"
 
       - name: Build frontend (React)
         run: |
-          cd frontend
+          cd Front-end
           npm run build
 
       - name: Build frontend Docker image (Nginx)
