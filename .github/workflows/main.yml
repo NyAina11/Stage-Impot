@@ -92,7 +92,7 @@ jobs:
 
       - name: Build frontend Docker image (Nginx)
         run: |
-          docker build -t stage-impot-frontend:ci-test ./frontend
+          docker build -t stage-impot-frontend:ci-test ./Front-end
 
   docker-compose-build:
     runs-on: ubuntu-latest
