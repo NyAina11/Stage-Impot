@@ -51,7 +51,7 @@ jobs:
         env:
           DATABASE_URL: "postgres://testuser:testpassword@localhost:5432/stage_impot_test"
         run: |
-          cd backend
+          cd Back-end
           npm test
 
       - name: Build backend Docker image
@@ -66,7 +66,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: Front-end/package-lock.json
 
