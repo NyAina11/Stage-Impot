@@ -36,7 +36,7 @@ jobs:
 
       - name: Install backend dependencies
         run: |
-          cd backend
+          cd Back-end
           npm ci
 
       - name: Wait for Postgres to be up
@@ -72,7 +72,7 @@ jobs:
 
       - name: Install frontend dependencies
         run: |
-          cd frontend
+          cd Front-end
           npm ci
 
       - name: Lint frontend
