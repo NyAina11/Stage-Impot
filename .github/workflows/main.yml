@@ -104,18 +104,18 @@ jobs:
 
       - name: Install frontend dependencies
         run: |
-          cd frontend
+          cd Front-end
           npm ci
       - name: Install Playwright Browsers
         run: |
-          cd frontend
+          cd Front-end
           npx playwright install --with-deps
       - name: Launch frontend (mode test)
         run: |
-          cd frontend
+          cd Front-end
           npm run start:test &
           sleep 10
       - name: Run Playwright tests
         run: |
-          cd frontend
+          cd Front-end
           npx playwright test
