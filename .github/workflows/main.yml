@@ -23,43 +23,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: Back-end/package-lock.json
-
-      - name: Install backend dependencies
-        run: |
-          cd Back-end
-          npm ci
-
-      - name: Wait for Postgres to be up
-        run: |
-          for i in {1..10}; do
-            nc -z localhost 5432 && echo "Postgres up" && break
-            echo "Waiting for postgres..."
-            sleep 3
-          done
-
-      - name: Run backend tests
-        env:
-          DATABASE_URL: "postgres://testuser:testpassword@localhost:5432/stage_impot_test"
-        run: |
-          cd Back-end
-          npm test
-
-      - name: Build backend Docker image
-        run: |
-          docker build -t stage-impot-backend:ci-test ./backend
-
-  frontend-tests:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -68,32 +31,59 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+          cache-dependency-path: Back-end/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          cd Back-end
+          npm ci
+      - name: Wait for Postgres to be up
+        run: |
+          for i in {1..10}; do
+            nc -z localhost 5432 && echo "Postgres up" && break
+            echo "Waiting for postgres..."
+            sleep 3
+          done
+      - name: Run backend tests
+        env:
+          DATABASE_URL: "postgres://testuser:testpassword@localhost:5432/stage_impot_test"
+        run: |
+          cd Back-end
+          npm test
+      - name: Build backend Docker image
+        run: |
+          docker build -t stage-impot-backend:ci-test ./Back-end
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
           cache-dependency-path: Front-end/package-lock.json
 
       - name: Install frontend dependencies
         run: |
           cd Front-end
           npm ci
-
       - name: Lint frontend
         run: |
           cd Front-end
           npm run lint || echo "No linter configured"
-
       - name: Run frontend tests (si gérés)
         run: |
           cd Front-end
           npm test || echo "No tests configured"
-
       - name: Build frontend (React)
         run: |
           cd Front-end
           npm run build
-
       - name: Build frontend Docker image (Nginx)
         run: |
           docker build -t stage-impot-frontend:ci-test ./Front-end
-
   docker-compose-build:
     runs-on: ubuntu-latest
     steps:
@@ -102,3 +92,30 @@ jobs:
       - name: Docker Compose Build (all services)
         run: |
           docker compose -f docker-compose.yml build
+  playwright-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      - name: Install Playwright Browsers
+        run: |
+          cd frontend
+          npx playwright install --with-deps
+      - name: Launch frontend (mode test)
+        run: |
+          cd frontend
+          npm run start:test &
+          sleep 10
+      - name: Run Playwright tests
+        run: |
+          cd frontend
+          npx playwright test
