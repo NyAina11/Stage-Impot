@@ -110,11 +110,6 @@ jobs:
         run: |
           cd Front-end
           npx playwright install --with-deps
-      - name: Launch frontend (mode test)
-        run: |
-          cd Front-end
-          npm run start:test &
-          sleep 10
       - name: Run Playwright tests
         run: |
           cd Front-end
