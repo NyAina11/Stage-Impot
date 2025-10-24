@@ -114,3 +114,23 @@ jobs:
         run: |
           cd Front-end
           npx playwright test
+
+  deploy:
+    name: CD Deploy to Local Docker Server
+    runs-on: self-hosted
+    needs: [backend-tests, frontend-tests, playwright-tests]   # adapte selon tes jobs CI !
+    steps:
+    # 1. Clone automatique du repo (dernière version) dans le workspace runner !
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    # 2. (Facultatif) Build images docker à jour
+    - name: Build Docker images
+      run: |
+        docker compose build
+
+    # 3. Déploiement/Update des containers à partir du code checkouté
+    - name: Deploy with Docker Compose
+      run: |
+        docker compose up -d --build
+
