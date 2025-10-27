@@ -1,4 +1,4 @@
-name: CI - Test Stage-Impot
+name: CI/CD - Test Stage-Impot
 
 on:
   push:
@@ -118,7 +118,7 @@ jobs:
   deploy:
     name: CD Deploy to Local Docker Server
     runs-on: self-hosted
-    needs: [backend-tests, frontend-tests, playwright-tests]   # adapte selon tes jobs CI !
+    needs: [backend-tests, frontend-tests, playwright-tests, docker-compose-build]   # adapte selon tes jobs CI !
     steps:
     # 1. Clone automatique du repo (dernière version) dans le workspace runner !
     - name: Checkout code
