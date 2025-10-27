@@ -81,10 +81,10 @@ const initializeDatabase = async () => {
       const chefPassword = await bcrypt.hash('chef123', 10);
 
       const users = [
-        { id: 'user_accueil', username: 'accueil_user', password: accueilPassword, role: ROLES.ACCUEIL },
-        { id: 'user_gestion', username: 'gestion_user', password: gestionPassword, role: ROLES.GESTION },
-        { id: 'user_caisse', username: 'caisse_user', password: caissePassword, role: ROLES.CAISSE },
-        { id: 'user_chef_division', username: 'chef_division_user', password: chefPassword, role: ROLES.CHEF_DIVISION },
+        { id: 'user_accueil', username: 'accueil', password: accueilPassword, role: ROLES.ACCUEIL },
+        { id: 'user_gestion', username: 'gestion', password: gestionPassword, role: ROLES.GESTION },
+        { id: 'user_caisse', username: 'caisse', password: caissePassword, role: ROLES.CAISSE },
+        { id: 'user_chef_division', username: 'chef_division', password: chefPassword, role: ROLES.CHEF_DIVISION },
       ];
 
       for (const user of users) {
