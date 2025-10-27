@@ -75,13 +75,16 @@ const initializeDatabase = async () => {
 
     if (userCount === 0) {
       console.log('📝 Création des utilisateurs par défaut...');
-      const hashedPassword = await bcrypt.hash('password123', 10);
+      const accueilPassword = await bcrypt.hash('accueil123', 10);
+      const gestionPassword = await bcrypt.hash('gestion123', 10);
+      const caissePassword = await bcrypt.hash('caisse123', 10);
+      const chefPassword = await bcrypt.hash('chef123', 10);
 
       const users = [
-        { id: 'user_accueil', username: 'accueil_user', password: hashedPassword, role: ROLES.ACCUEIL },
-        { id: 'user_gestion', username: 'gestion_user', password: hashedPassword, role: ROLES.GESTION },
-        { id: 'user_caisse', username: 'caisse_user', password: hashedPassword, role: ROLES.CAISSE },
-        { id: 'user_chef_division', username: 'chef_division_user', password: hashedPassword, role: ROLES.CHEF_DIVISION },
+        { id: 'user_accueil', username: 'accueil_user', password: accueilPassword, role: ROLES.ACCUEIL },
+        { id: 'user_gestion', username: 'gestion_user', password: gestionPassword, role: ROLES.GESTION },
+        { id: 'user_caisse', username: 'caisse_user', password: caissePassword, role: ROLES.CAISSE },
+        { id: 'user_chef_division', username: 'chef_division_user', password: chefPassword, role: ROLES.CHEF_DIVISION },
       ];
 
       for (const user of users) {
