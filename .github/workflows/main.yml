@@ -1,4 +1,4 @@
-name: CI/CD - Test Stage-Impot
+name: CI/CD - Stage-Impot
 
 on:
   push:
