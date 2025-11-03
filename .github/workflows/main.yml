@@ -2,9 +2,9 @@ name: CI/CD - Stage-Impot
 
 on:
   push:
-    branches: [ main, BD ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, BD ]
+    branches: [ main ]
 
 jobs:
   backend-tests:
