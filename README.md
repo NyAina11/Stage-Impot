@@ -117,4 +117,4 @@ Si vous préférez exécuter le frontend et le backend séparément (par exemple
 *   `vite.config.ts` : Configuration Vite.
 *   `tsconfig.json` : Configuration TypeScript.
 
-test webhook avec secret
+test webhook sans secret
